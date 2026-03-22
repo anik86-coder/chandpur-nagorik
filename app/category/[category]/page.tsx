@@ -1,7 +1,13 @@
-export default function CategoryPage() {
+type Props = {
+  params: {
+    category: string
+  }
+}
+
+export default function CategoryPage({ params }: Props) {
   return (
     <div>
-      Category Page
+      Category: {params.category}
     </div>
   );
 }
