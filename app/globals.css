@@ -44,17 +44,18 @@ body {
   line-height: 1.7;
 }
 
-/* Breaking News Animation */
-
+/* Breaking News Animation Update */
 @keyframes breaking {
   0% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
 .animate-breaking {
-  animation: breaking 14s linear infinite;
+  display: flex; /* Nishchit korun flex thaka */
+  animation: breaking 20s linear infinite; /* Speed ektu komale (e.g. 20s) aro smooth dekhay */
+  will-change: transform; /* Browser-ke agei prostut rakhe */
 }
