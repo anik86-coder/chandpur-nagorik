@@ -1,17 +1,34 @@
 @import "tailwindcss";
 
+/* SolaimanLipi Font */
+@font-face {
+  font-family: "SolaimanLipi";
+  src: url("/fonts/SolaimanLipi_22-02-2012.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Logo Font */
+@font-face {
+  font-family: "AlinurRangpur";
+  src: url("/fonts/LiAlinurRangpurUnicode.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Color variables */
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
+/* Tailwind theme */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
+/* Dark mode */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -19,8 +36,25 @@
   }
 }
 
+/* Global body style */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), "SolaimanLipi", sans-serif;
+  line-height: 1.7;
+}
+
+/* Breaking News Animation */
+
+@keyframes breaking {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-breaking {
+  animation: breaking 14s linear infinite;
 }
