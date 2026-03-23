@@ -7,7 +7,8 @@ export default function NewsCard({ post }: any) {
   return (
     <div className="pb-4 border-b border-gray-200">
 
-      <Link href={`/news/${post.slug}`}>
+      {/* এখানে /news/ এর বদলে categorySlug বসানো হলো */}
+      <Link href={`/${post.categorySlug || 'national'}/${post.slug}`}>
         <div className="flex gap-3">
 
           {/* Title */}

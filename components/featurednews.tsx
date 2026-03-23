@@ -1,15 +1,17 @@
-import Link from "next/link"; // এটি ফাইলের একদম উপরে ইমপোর্ট করবেন
+import Link from "next/link"; 
 
 export default function FeaturedNews() {
-  const newsSlug = "national123456"; // আপনার .md ফাইলের নাম (ভবিষ্যতে এটি ডাইনামিক হবে)
+  // আপনার নতুন গোপন নম্বর এবং ক্যাটাগরি
+  const newsSlug = "2531478593"; 
+  const categorySlug = "national"; 
 
   return (
     <div className="grid md:grid-cols-2 md:gap-x-6 gap-y-4 mb-0"> 
 
       <div className="border-l-4 border-[#116cb4] pl-4 py-1 flex flex-col justify-between h-[250px] md:h-[300px]">
 
-        {/* টাইটেলের চারপাশে Link দেওয়া হলো */}
-        <Link href={`/news/${newsSlug}`}>
+        {/* টাইটেলের লিংক আপডেট করা হলো: /national/2531478593 */}
+        <Link href={`/${categorySlug}/${newsSlug}`}>
           <h1 className="text-3xl font-bold text-black-600 leading-tight hover:text-[#116cb4] transition-colors cursor-pointer">
             একাত্তরের গণহত্যার স্বীকৃতির দাবিতে যুক্তরাষ্ট্রের কংগ্রেসে প্রস্তাব
           </h1>
@@ -27,15 +29,15 @@ export default function FeaturedNews() {
 
         <div className="mt-2">
           <button className="bg-gray-200 px-4 py-1 rounded text-sm">
-            পাকিস্তান
+            জাতীয়
           </button>
         </div>
 
       </div>
 
       <div className="w-full">
-        {/* ইমেজের চারপাশে Link দেওয়া হলো */}
-        <Link href={`/news/${newsSlug}`}>
+        {/* ইমেজের লিংক আপডেট করা হলো */}
+        <Link href={`/${categorySlug}/${newsSlug}`}>
           <img
             src="https://res.cloudinary.com/dfzirugge/image/upload/v1774201294/Untitled-1_jcltqc.png"
             className="w-full h-[250px] md:h-[300px] object-cover rounded cursor-pointer"

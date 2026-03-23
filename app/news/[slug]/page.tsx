@@ -1,99 +1,108 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { remark } from "remark";
-import html from "remark-html";
-import ShareButtons from "@/components/ShareButtons"; // আপনার লোকেশন অনুযায়ী ঠিক করে নিন
-import Sidebar from "@/components/sidebar"; // আপনার Sidebar-এর লোকেশন অনুযায়ী ইমপোর্ট করুন
 
-// ইংরেজি সংখ্যা এবং সময়কে বাংলায় রূপান্তর করার ফাংশন
-const convertToBangla = (str: string) => {
-  if (!str) return "";
-  
-  const banglaNumbers: { [key: string]: string } = {
-    '0': '০', '1': '১', '2': '২', '3': '৩', '4': '৪',
-    '5': '৫', '6': '৬', '7': '৭', '8': '৮', '9': '৯'
-  };
-  let converted = str.replace(/[0-9]/g, (match) => banglaNumbers[match]);
-  converted = converted.replace(/AM/i, "এএম").replace(/PM/i, "পিএম");
-  return converted;
+// ../ এর বদলে @/ ব্যবহার করা হলো (এটি Next.js এর ডিফল্ট এবং সবচেয়ে ভালো নিয়ম)
+import FeaturedNews from "@/components/featurednews";
+import BigNewsCard from "@/components/bignewscard";
+import NewsCard from "@/components/newscard";
+import Sidebar from "@/components/sidebar";
+// ডেমো কার্ডগুলোর জন্য নতুন ডাটা সেট করা হলো
+const demoPost = {
+  slug: "2531478593", 
+  categorySlug: "national", // কার্ডের লিংকের জন্য
+  title: "একাত্তরের গণহত্যার স্বীকৃতির দাবিতে যুক্তরাষ্ট্রের কংগ্রেসে প্রস্তাব",
+  date: "2026-03-23",
+  image: "https://res.cloudinary.com/dfzirugge/image/upload/v1774201294/Untitled-1_jcltqc.png",
 };
 
-export default async function NewsPage({ params }: any) {
-  const { slug } = await params;
+// বাংলা নাম থেকে ইংরেজি লিংক বের করার ম্যাপ
+const reverseCategoryMap: { [key: string]: string } = {
+  "সারাদেশ": "national",
+  "জাতীয়": "national", 
+  "চাঁদপুর": "chandpur",
+  "রাজনীতি": "politics",
+  "অর্থনীতি": "economy",
+  "ক্রীড়া": "sports",
+  "আন্তর্জাতিক": "international",
+  "টেকনোলজি": "technology",
+};
 
-  const filePath = path.join(process.cwd(), "content", "news", `${slug}.md`);
-  const fileContent = fs.readFileSync(filePath, "utf8");
-  const { data, content } = matter(fileContent);
+function getSidebarNews() {
+  const postsDirectory = path.join(process.cwd(), "content", "news"); 
+  
+  if (!fs.existsSync(postsDirectory)) return { popularNews: [], latestNews: [] };
 
-  const processedContent = await remark().use(html).process(content);
-  const contentHtml = processedContent.toString();
+  const fileNames = fs.readdirSync(postsDirectory);
+  const allNews = fileNames.map((fileName) => {
+    const slug = fileName.replace(/\.md$/, "");
+    const fullPath = path.join(postsDirectory, fileName);
+    const fileContents = fs.readFileSync(fullPath, "utf8");
+    const { data } = matter(fileContents);
 
-  const banglaDate = convertToBangla(data.date);
-  const banglaTime = convertToBangla(data.time);
-  const reporter = data.author || "নিজস্ব প্রতিবেদক";
+    return {
+      slug,
+      title: data.title || "শিরোনাম নেই",
+      category: data.category || "সংবাদ",
+      categorySlug: reverseCategoryMap[data.category as string] || "national",
+      date: data.date || "2026-01-01",
+    };
+  });
+
+  const latestNews = [...allNews]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+
+  const popularFileNames = [
+    "2531478593", 
+    "chandpur-road",
+    "launch-terminal",
+    "2531478593",
+    "chandpur-road"
+  ];
+
+  const popularNews = popularFileNames
+    .map((name) => allNews.find((news) => news.slug === name))
+    .filter((news) => news !== undefined) as any[]; 
+
+  return { popularNews, latestNews };
+}
+
+export default function Home() {
+  const { popularNews, latestNews } = getSidebarNews();
 
   return (
-    // মেইন কন্টেইনার: গ্রিড লেআউট (বামে ২ কলাম, ডানে ১ কলাম)
-    <div className="max-w-7xl mx-auto p-4 md:p-6 font-[Kalpurush] grid grid-cols-1 lg:grid-cols-3 gap-8">
-      
-      {/* ================= বাম পাশ: মূল নিউজ সেকশন (lg:col-span-2) ================= */}
-      <article className="lg:col-span-2">
+    <main className="max-w-screen-xl mx-auto px-4 py-6">
+      <div className="grid grid-cols-4 gap-6">
         
-        {/* ক্যাটাগরি */}
-        <div className="mb-4">
-          <span className="bg-gray-600 text-white px-3 py-1 rounded text-sm md:text-base font-semibold tracking-wide">
-            {data.category || "জাতীয়"}
-          </span>
-        </div>
+        {/* LEFT CONTENT */}
+        <div className="col-span-3">
+          
+          <FeaturedNews />
 
-        {/* মেইন হেডলাইন */}
-        <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight text-black">
-          {data.title}
-        </h1>
-
-        {/* প্রতিবেদক, তারিখ, সময় এবং শেয়ার অপশন */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-gray-200 pb-3">
-          <div className="flex flex-wrap items-center text-gray-700 text-base font-medium">
-            <span className="text-gray-900 font-bold mr-2">{reporter}</span>
-            <span className="text-gray-400 mx-2">|</span>
-            <span>{banglaDate}</span>
-            <span className="text-gray-400 mx-2">|</span>
-            <span>{banglaTime}</span>
+          <div className="grid md:grid-cols-2 gap-6 my-8">
+            <BigNewsCard />
+            <BigNewsCard />
           </div>
-          <div>
-             <ShareButtons />
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8 border-t border-gray-300 pt-6">
+            <NewsCard post={demoPost} />
+            <NewsCard post={demoPost} />
+            <NewsCard post={demoPost} />
+            <NewsCard post={demoPost} />
+            <NewsCard post={demoPost} />
+            <NewsCard post={demoPost} />
+            <NewsCard post={demoPost} />
+            <NewsCard post={demoPost} />
           </div>
         </div>
 
-        {/* ইমেজ */}
-        {data.image && (
-          <img
-            src={data.image}
-            alt={data.title}
-            className="w-full object-cover rounded-lg mb-6 shadow-sm"
-          />
-        )}
+        {/* SIDEBAR */}
+        <div className="col-span-1">
+          <Sidebar popularNews={popularNews as any} latestNews={latestNews as any} />
+        </div>
 
-        {/* মূল নিউজ কন্টেন্ট */}
-        <div 
-          className="text-lg text-gray-800 leading-relaxed prose prose-lg max-w-none"
-          dangerouslySetInnerHTML={{ __html: contentHtml }} 
-        />
-
-      </article>
-
-      {/* ================= ডান পাশ: আপনার আসল সাইডবার (lg:col-span-1) ================= */}
-      <aside className="lg:col-span-1">
-         {/* sticky top-6 রাখার কারণে আপনার সাইডবারটি স্ক্রল করলেও স্ক্রিনের সাথে লেগে থাকবে */}
-         <div className="sticky top-6"> 
-            
-            {/* এখানে আপনার অরিজিনাল Sidebar কম্পোনেন্ট কল করা হয়েছে */}
-            <Sidebar />
-
-         </div>
-      </aside>
-
-    </div>
+      </div>
+    </main>
   );
 }
