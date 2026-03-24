@@ -12,6 +12,7 @@ export default function Header() {
   // ১৫টি ক্যাটাগরির লিস্ট (লুপ চালানোর জন্য অ্যারে বানালে কোড দেখতে সুন্দর লাগে)
   const categories = [
     { name: "হোম", link: "/" },
+    { name: "সব", link: "/all" },
     { name: "চাঁদপুর", link: "/chandpur" },
     { name: "সারাদেশ", link: "/national" },
     { name: "রাজনীতি", link: "/politics" },
@@ -31,22 +32,26 @@ export default function Header() {
   return (
     <header className="bg-white">
       {/* Logo + Date */}
-      <div className="max-w-screen-xl mx-auto px-4 py-2 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0">
-        <Link href="/" className="flex items-center gap-3">
+      {/* py-3 সরিয়ে py-0 দেওয়া হলো, যাতে ওপরে-নিচে কোনো স্পেসিং না থাকে */}
+      <div className="max-w-screen-xl mx-auto px-4 py-0 flex flex-col md:flex-row items-center justify-between">
+        
+        <Link href="/" className="flex items-center">
           <Image
-            src="/logo-1.png"
+            src="/logo-banner-1.png"
             alt="Chandpur Nagorik Logo"
-            width={50}
-            height={50}
-            className="object-contain"
+            width={300}  
+            height={80}  
+            // হাইট আরেকটু বাড়িয়ে দেওয়া হলো যাতে সুন্দর দেখায়
+            className="object-contain h-14 md:h-[75px] w-auto" 
+            priority 
           />
-          <h1 className="text-4xl font-[AlinurRangpur] text-black-600">
-            চাঁদপুর নাগরিক
-          </h1>
         </Link>
-        <span className="text-sm text-gray-600 font-medium">{today}</span>
-      </div>
 
+        {/* মোবাইলের জন্য একটু প্যাডিং রাখা হলো, কম্পিউটারে প্যাডিং থাকবে না */}
+        <span className="text-sm text-gray-600 font-medium pb-2 md:pb-0">{today}</span>
+      </div>
+      
+      {/* আপনার হেডারের বাকি কোড (মেনু ইত্যাদি) নিচে থাকবে... */}
       {/* Navigation */}
       <nav className="border-t border-gray-200">
         <div className="max-w-screen-xl mx-auto px-4">

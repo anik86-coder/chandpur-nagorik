@@ -7,7 +7,7 @@ import Sidebar from "@/components/sidebar";
 
 // ক্যাশ বন্ধ করার জন্য লাইনগুলো একবারই থাকবে
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
+//export const revalidate = 0;
 
 const categoryTitleMap: { [key: string]: string } = {
   national: "সারাদেশ ও জাতীয়", 
