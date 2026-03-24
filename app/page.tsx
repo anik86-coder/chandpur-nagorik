@@ -48,13 +48,32 @@ export default function Home() {
   const bigNewsFiles = ["national-100002", "politics-100003"];
   const newsCardFiles = ["economy-100004", "sports-100005", "international-100006", "technology-100007", "entertainment-100008", "education-100009"];
   
+  // =====================================================================
+  // আপনার ম্যানুয়াল ৫টি শীর্ষ সংবাদের লিস্ট (এখানে নামগুলো পরিবর্তন করবেন)
+  // =====================================================================
+  const topHighlightFiles = [
+    "2531478593",       // ১ নম্বর খবর
+    "chandpur-road",    // ২ নম্বর খবর 
+    "launch-terminal",  // ৩ নম্বর খবর
+    "2531478593",       // ৪ নম্বর খবর (৫টা পূরণের জন্য ডেমো দিলাম, আসল নাম বসাবেন)
+    "technology-100007"     // ৫ নম্বর খবর (৫টা পূরণের জন্য ডেমো দিলাম, আসল নাম বসাবেন)
+  ];
+  
+  // ফাইলগুলো খুঁজে বের করা হচ্ছে
+  const topHighlightNews = topHighlightFiles
+    .map(fileName => allNews.find(post => post.slug === fileName))
+    .filter(Boolean) as any[]; // ভুল নাম দিলে সাইট ক্র্যাশ করবে না
+    
   const nationalNews = allNews.filter(post => post.urlCategory === "national").slice(0, 5);
 
   return (
     <main className="max-w-screen-xl mx-auto px-4 py-6 font-[Kalpurush]">
+      
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         
-        {/* LEFT CONTENT */}
+        {/* ===================================================================== */}
+        {/* বাম দিকের কন্টেন্ট (Span 3) */}
+        {/* ===================================================================== */}
         <div className="lg:col-span-3 flex flex-col">
           
           <FeaturedNews post={getPost(featuredFile)} />
@@ -77,21 +96,47 @@ export default function Home() {
           </div>
 
           {/* ===================================================================== */}
-          {/* ২. সারাদেশ সেকশন (ডিজাইন আপডেট করা হয়েছে) */}
+          {/* ২. নতুন শীর্ষ সংবাদ সেকশন (ম্যানুয়াল ডাটা) */}
           {/* ===================================================================== */}
-          
+          {topHighlightNews.length > 0 && (
+            <div className="mt-4 mb-0 bg-[#f4f5f7] border border-gray-200">
+              <div className="bg-[#116cb4] text-white text-center py-2 px-4 shadow-sm">
+                <h2 className="text-xl md:text-2xl font-bold">শীর্ষ সংবাদ</h2>
+              </div>
+              <div className="p-4 flex overflow-x-auto lg:grid lg:grid-cols-5 gap-4 sm:gap-6 [&::-webkit-scrollbar]:hidden">
+                {topHighlightNews.map((post, i) => (
+                  <Link 
+                    href={`/${post.urlCategory}/${post.slug}`} 
+                    key={i} 
+                    className="flex flex-col group min-w-[160px] lg:min-w-0"
+                  >
+                    <img 
+                      src={post.image} 
+                      alt={post.title} 
+                      className="w-full h-[100px] md:h-[110px] object-cover mb-2 border border-gray-300" 
+                    />
+                    <span className="text-[#116cb4] text-[13px] font-bold mb-1">{post.category}</span>
+                    <h3 className="text-gray-900 font-bold text-[15px] leading-snug group-hover:text-red-600 transition-colors">
+                      {post.title}
+                    </h3>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ===================================================================== */}
+          {/* ৩. সারাদেশ ও জাতীয় সেকশন */}
+          {/* ===================================================================== */}
           {nationalNews.length > 0 && (
-            <div className="mt-12 pt-6 border-t border-gray-300">
-              
+            <div className="mt-6 pt-6 border-t border-gray-300">
               <div className="mb-6 border-b border-gray-300 pb-2">
                 <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#116cb4] pl-3">
-                  সারাদেশ ও জাতীয়
+                  সারাদেশ ও জাতীয়
                 </h2>
               </div>
 
-              {/* ১টি বড় খবর */}
               <div className="flex flex-col md:flex-row gap-6 mb-8 group cursor-pointer items-stretch">
-                {/* বামে ছবি */}
                 <div className="w-full md:w-[55%]">
                   <Link href={`/${nationalNews[0].urlCategory}/${nationalNews[0].slug}`}>
                     <img 
@@ -101,7 +146,6 @@ export default function Home() {
                     />
                   </Link>
                 </div>
-                {/* ডানে লেখা (ওপর থেকে শুরু, নিচে তারিখ) */}
                 <div className="w-full md:w-[45%] flex flex-col py-1">
                   <Link href={`/${nationalNews[0].urlCategory}/${nationalNews[0].slug}`}>
                     <h3 className="text-xl md:text-2xl font-bold group-hover:text-red-600 transition leading-tight">
@@ -111,14 +155,12 @@ export default function Home() {
                   <p className="text-gray-600 mt-3 line-clamp-3 md:line-clamp-4 text-[16px] leading-relaxed text-justify">
                     {nationalNews[0].excerpt}
                   </p>
-                  {/* mt-auto এর ফলে তারিখটি একদম নিচে চলে যাবে */}
                   <p className="text-sm text-gray-500 mt-auto pt-4 font-medium">
                     {nationalNews[0].date}
                   </p>
                 </div>
               </div>
 
-              {/* ৪টি ছোট খবরের গ্রিড */}
               {nationalNews.length > 1 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 border-t border-gray-200 pt-6">
                   {nationalNews.slice(1, 5).map((post, i) => (
@@ -137,13 +179,14 @@ export default function Home() {
                   ))}
                 </div>
               )}
-
             </div>
           )}
 
         </div>
 
-        {/* SIDEBAR */}
+        {/* ===================================================================== */}
+        {/* ডান দিকের কন্টেন্ট (Span 1 - Sidebar) */}
+        {/* ===================================================================== */}
         <div className="lg:col-span-1">
           <div className="sticky top-6">
              <Sidebar popularNews={popularNews} latestNews={latestNews} />

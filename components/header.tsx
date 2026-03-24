@@ -9,7 +9,7 @@ export default function Header() {
     day: "numeric",
   });
 
-  // ১৫টি ক্যাটাগরির লিস্ট (লুপ চালানোর জন্য অ্যারে বানালে কোড দেখতে সুন্দর লাগে)
+  // ১৬টি ক্যাটাগরির লিস্ট
   const categories = [
     { name: "হোম", link: "/" },
     { name: "সব", link: "/all" },
@@ -30,10 +30,13 @@ export default function Header() {
   ];
 
   return (
-    <header className="bg-white">
+    // =========================================================================
+    // ম্যাজিকটি এখানে: sticky, top-0, z-50 এবং shadow-sm যোগ করা হয়েছে
+    // =========================================================================
+    <header className="bg-white sticky top-0 z-50 shadow-sm">
+      
       {/* Logo + Date */}
-      {/* py-3 সরিয়ে py-0 দেওয়া হলো, যাতে ওপরে-নিচে কোনো স্পেসিং না থাকে */}
-      <div className="max-w-screen-xl mx-auto px-4 py-0 flex flex-col md:flex-row items-center justify-between">
+      <div className="max-w-screen-xl mx-auto px-4 py-2 md:py-0 flex flex-col md:flex-row items-center justify-between">
         
         <Link href="/" className="flex items-center">
           <Image
@@ -41,19 +44,19 @@ export default function Header() {
             alt="Chandpur Nagorik Logo"
             width={300}  
             height={80}  
-            // হাইট আরেকটু বাড়িয়ে দেওয়া হলো যাতে সুন্দর দেখায়
             className="object-contain h-14 md:h-[75px] w-auto" 
             priority 
           />
         </Link>
 
         {/* মোবাইলের জন্য একটু প্যাডিং রাখা হলো, কম্পিউটারে প্যাডিং থাকবে না */}
-        <span className="text-sm text-gray-600 font-medium pb-2 md:pb-0">{today}</span>
+        <span className="text-sm text-gray-600 font-medium pb-2 md:pb-0">
+          {today}
+        </span>
       </div>
       
-      {/* আপনার হেডারের বাকি কোড (মেনু ইত্যাদি) নিচে থাকবে... */}
       {/* Navigation */}
-      <nav className="border-t border-gray-200">
+      <nav className="border-t border-gray-200 bg-white">
         <div className="max-w-screen-xl mx-auto px-4">
           <ul className="flex flex-wrap gap-2 md:gap-3 py-3 font-medium justify-center">
             {categories.map((cat, index) => (
@@ -69,6 +72,7 @@ export default function Header() {
           </ul>
         </div>
       </nav>
+
     </header>
   );
 }
