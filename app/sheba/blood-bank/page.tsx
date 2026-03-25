@@ -28,9 +28,6 @@ export default function BloodBankPage() {
   const [otpSent, setOtpSent] = useState(false); 
   const [isProcessing, setIsProcessing] = useState(false); 
   
-  // কপি করার স্ট্যাটাস ট্র্যাক করার জন্য
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [loading, setLoading] = useState(true);
 
@@ -149,7 +146,7 @@ export default function BloodBankPage() {
 
     } catch (error: any) {
       console.error("রেজিস্ট্রেশন এরর:", error);
-      showToast("নিবন্ধন করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।", "error");
+      showToast("নিবন্ধন করতে সমস্যা হয়েছে। আবার চেষ্টা করুন。", "error");
     }
   };
 
@@ -181,11 +178,11 @@ export default function BloodBankPage() {
         setOtpSent(true);
         showToast("আপনার ইমেইলে একটি ৬-ডিজিটের OTP পাঠানো হয়েছে!");
       } else {
-        showToast(data.message || "OTP পাঠাতে সমস্যা হয়েছে।", "error");
+        showToast(data.message || "OTP পাঠাতে সমস্যা হয়েছে。", "error");
       }
     } catch (error) {
       console.error("Error sending OTP:", error);
-      showToast("সার্ভারে সমস্যা হচ্ছে। একটু পর আবার চেষ্টা করুন।", "error");
+      showToast("সার্ভারে সমস্যা হচ্ছে। একটু পর আবার চেষ্টা করুন。", "error");
     }
     setIsProcessing(false);
   };
@@ -221,7 +218,7 @@ export default function BloodBankPage() {
       }
     } catch (error) {
       console.error("Error verifying OTP:", error);
-      showToast("ভেরিফাই করতে সমস্যা হচ্ছে।", "error");
+      showToast("ভেরিফাই করতে সমস্যা হচ্ছে。", "error");
     }
     setIsProcessing(false);
   };
@@ -289,48 +286,16 @@ export default function BloodBankPage() {
                     return (
                       <div key={donor.id} className={`p-4 rounded-lg border ${isAvailable ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-gray-50 opacity-75'} hover:shadow-md transition-shadow`}>
                         <div className="flex justify-between items-center">
-                          <div className="flex-1">
-                            <h4 className="font-bold text-xl text-gray-900">{donor.name}</h4>
+                          <div>
+                            <h4 className="font-bold text-lg text-gray-900">{donor.name}</h4>
                             
-                            {/* অ্যাড্রেস ব্যাজ */}
-                            {donor.address && (
-                              <div className="mt-1.5 mb-1.5">
-                                <span className="bg-gray-800 text-white text-[11px] px-2 py-1 rounded-md inline-flex items-center gap-1 shadow-sm font-sans tracking-wide">
-                                  <svg className="w-3 h-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                                  </svg>
-                                  {donor.address}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* কপি ফাংশনসহ আইডি */}
-                            <div 
-                              className="flex items-center gap-2 mt-1 cursor-pointer group w-fit transition-all" 
-                              onClick={() => {
-                                navigator.clipboard.writeText(donor.id);
-                                setCopiedId(donor.id);
-                                setTimeout(() => setCopiedId(null), 2000);
-                              }}
-                              title="ID কপি করতে ক্লিক করুন"
-                            >
-                              <p className="text-sm font-semibold text-gray-500 group-hover:text-gray-700">
-                                ID: <span className="font-normal text-gray-600 tracking-wider select-all">{donor.id}</span>
-                              </p>
+                            {/* [আপডেট]: ID সুন্দর করে নামের নিচে বোল্ড আকারে দেওয়া হয়েছে */}
+                            <p className="text-sm font-semibold text-gray-500 mt-1 select-all cursor-copy" title="কপি করতে ক্লিক করুন">
+                              ID: <span className="text-gray-800 tracking-wider">{donor.id}</span>
+                            </p>
 
-                              {copiedId === donor.id ? (
-                                <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded flex items-center gap-1 font-sans">
-                                  Copied!
-                                </span>
-                              ) : (
-                                <svg className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                              )}
-                            </div>
-
-                            <span className={`inline-block mt-3 px-3 py-1 text-xs font-bold rounded-full ${isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                              {isAvailable ? '✅ রক্ত দিতে প্রস্তুত' : '⏳ এখন পারবেন না'}
+                            <span className={`inline-block mt-2 px-2.5 py-1 text-[11px] font-bold rounded-full ${isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {isAvailable ? '✅ প্রস্তুত' : '⏳ এখন পারবেন না'}
                             </span>
                           </div>
 
@@ -338,7 +303,7 @@ export default function BloodBankPage() {
                             {isAvailable ? (
                               <button 
                                 onClick={() => { setDetailsModal(donor); setRevealedPhone(null); }} 
-                                className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all"
                               >
                                 বিস্তারিত দেখুন
                               </button>
@@ -398,8 +363,14 @@ export default function BloodBankPage() {
               </div>
             </div>
 
+            <div>
+              <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">কোনো রোগ বা অ্যালার্জি আছে কি? (ঐচ্ছিক)</label>
+              <input type="text" placeholder="না থাকলে ফাঁকা রাখুন" className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg" value={formData.disease} onChange={e => setFormData({...formData, disease: e.target.value})} />
+            </div>
+            
             <div className="bg-red-50 p-4 rounded-xl mt-4 border border-red-100">
               <label className="text-xs text-red-600 font-bold uppercase tracking-wider">আপনার ইমেইল এড্রেস *</label>
+              <p className="text-xs text-gray-500 mb-2 mt-1">ভবিষ্যতে প্রোফাইল আপডেট করার জন্য সঠিক ইমেইল দিন (এখানেই OTP যাবে):</p>
               <input type="email" placeholder="example@gmail.com" className="w-full border-b-2 border-red-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
             </div>
 
@@ -423,11 +394,13 @@ export default function BloodBankPage() {
             <h3 className="text-xl font-bold mb-5 text-gray-800 border-b-2 border-red-100 pb-2 mt-2">ডোনারের বিস্তারিত তথ্য</h3>
 
             <div className="space-y-3 mb-6 text-gray-700">
-              <p><span className="font-bold text-gray-500 w-24 inline-block">নাম:</span> <span className="text-xl font-bold text-gray-900">{detailsModal.name}</span></p>
+              <p><span className="font-bold text-gray-500 w-24 inline-block">নাম:</span> <span className="text-lg font-bold text-gray-900">{detailsModal.name}</span></p>
               <p><span className="font-bold text-gray-500 w-24 inline-block">রক্তের গ্রুপ:</span> <span className="text-red-600 font-bold text-lg">{detailsModal.group}</span></p>
               <p><span className="font-bold text-gray-500 w-24 inline-block">ঠিকানা:</span> {detailsModal.address}</p>
               <p><span className="font-bold text-gray-500 w-24 inline-block">জন্মতারিখ:</span> {detailsModal.dob}</p>
               {detailsModal.disease && <p><span className="font-bold text-gray-500 w-24 inline-block">রোগ:</span> {detailsModal.disease}</p>}
+              {detailsModal.allergy && <p><span className="font-bold text-gray-500 w-24 inline-block">অ্যালার্জি:</span> {detailsModal.allergy}</p>}
+              {/* [আপডেট]: বিস্তারিত মডাল থেকে আইডি লাইনটি বাদ দেওয়া হয়েছে */}
             </div>
 
             <div className="bg-green-50 p-5 rounded-xl text-center border border-green-200">
@@ -443,7 +416,7 @@ export default function BloodBankPage() {
                     }}
                     className="bg-green-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-green-700 w-full shadow-md transition-colors"
                   >
-                    আমি রক্ত দিয়েছি (আপডেট)
+                    আমি রক্ত দিয়েছি (স্ট্যাটাস আপডেট)
                   </button>
                 </div>
               ) : (
@@ -460,45 +433,47 @@ export default function BloodBankPage() {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[150] px-4 backdrop-blur-sm">
           <div className="bg-white p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl">
             <h3 className="text-2xl font-bold mb-2 text-gray-800">স্ট্যাটাস আপডেট</h3>
+            
             {!otpSent ? (
               <>
-                <p className="text-sm text-gray-500 mb-6">নিবন্ধিত ইমেইলটি দিন।</p>
+                <p className="text-sm text-gray-500 mb-6">রক্ত দেওয়ার স্ট্যাটাস আপডেট করতে আপনার নিবন্ধিত ইমেইলটি দিন।</p>
                 <input 
                   type="email" 
                   placeholder="আপনার ইমেইল এড্রেস" 
-                  className="border-b-2 border-gray-300 py-2 w-full mb-6 outline-none focus:border-red-600 text-center text-lg bg-transparent"
+                  className="border-b-2 border-gray-300 py-2 w-full mb-6 outline-none focus:border-red-600 text-center text-lg bg-transparent transition-colors"
                   value={loginEmail}
                   onChange={e => setLoginEmail(e.target.value)}
                 />
                 <div className="flex gap-3">
-                  <button onClick={handleSendOtp} disabled={isProcessing} className="bg-red-600 text-white py-3 w-full rounded-xl font-bold">
+                  <button onClick={handleSendOtp} disabled={isProcessing} className="bg-red-600 text-white py-3 w-full rounded-xl font-bold hover:bg-red-700 disabled:opacity-50 transition-all shadow-md">
                     {isProcessing ? 'পাঠানো হচ্ছে...' : 'OTP পাঠান'}
                   </button>
-                  <button onClick={closeModal} className="bg-gray-100 py-3 px-6 rounded-xl font-bold">বাতিল</button>
+                  <button onClick={closeModal} className="bg-gray-100 text-gray-800 py-3 px-6 rounded-xl font-bold hover:bg-gray-200 transition-all">বাতিল</button>
                 </div>
               </>
             ) : (
               <>
-                <p className="text-sm text-green-600 mb-6 font-semibold">৬-ডিজিটের কোডটি দিন।</p>
+                <p className="text-sm text-green-600 mb-6 font-semibold bg-green-50 p-2 rounded-lg">আপনার ইমেইলে একটি ৬-ডিজিটের কোড পাঠানো হয়েছে।</p>
                 <input 
                   type="text" 
                   placeholder="------" 
-                  className="border-b-2 border-green-400 py-2 w-full mb-6 outline-none text-center text-3xl tracking-[0.5em] font-bold"
+                  className="border-b-2 border-green-400 py-2 w-full mb-6 outline-none focus:border-green-600 text-center text-3xl tracking-[0.5em] font-bold bg-transparent transition-colors"
                   value={loginOtp}
                   onChange={e => setLoginOtp(e.target.value)}
                   maxLength={6}
                 />
                 <div className="flex gap-3">
-                  <button onClick={handleVerifyAndUpdate} disabled={isProcessing} className="bg-green-600 text-white py-3 w-full rounded-xl font-bold">
-                    ভেরিফাই করুন
+                  <button onClick={handleVerifyAndUpdate} disabled={isProcessing} className="bg-green-600 text-white py-3 w-full rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 transition-all shadow-md">
+                    {isProcessing ? 'ভেরিফাই হচ্ছে...' : 'আপডেট করুন'}
                   </button>
-                  <button onClick={closeModal} className="bg-gray-100 py-3 px-6 rounded-xl font-bold">বাতিল</button>
+                  <button onClick={closeModal} className="bg-gray-100 text-gray-800 py-3 px-6 rounded-xl font-bold hover:bg-gray-200 transition-all">বাতিল</button>
                 </div>
               </>
             )}
           </div>
         </div>
       )}
+
     </main>
   );
 }
