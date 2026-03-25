@@ -23,6 +23,7 @@ export default function Header() {
   });
 
   const categories = [
+    { name: "নাগরিক সেবা", link: "/sheba" }, // <-- এটি একদম প্রথমে যুক্ত করা হলো
     { name: "হোম", link: "/" }, { name: "সব", link: "/all" },
     { name: "চাঁদপুর", link: "/chandpur" }, { name: "সারাদেশ", link: "/national" },
     { name: "রাজনীতি", link: "/politics" }, { name: "অর্থনীতি", link: "/economy" },
