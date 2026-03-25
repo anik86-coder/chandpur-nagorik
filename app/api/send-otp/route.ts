@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const mailOptions = {
       from: `"Chandpur Nagorik" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'Blood Bank Login OTP',
+      subject: `আপনার ব্লাড ব্যাংক OTP: ${otp}`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
           <h2 style="color: #333;">Chandpur Nagorik Blood Bank</h2>
