@@ -1,6 +1,5 @@
 "use client";
 
-// useEffect যুক্ত করা হয়েছে স্ক্রল লক করার জন্য
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,16 +7,12 @@ import Image from "next/image";
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // =========================================================
-  // ম্যাজিক: মেনু খোলা থাকলে পেছনের পেজ স্ক্রল হওয়া বন্ধ করবে
-  // =========================================================
   useEffect(() => {
     if (isMenuOpen) {
-      document.body.style.overflow = "hidden"; // স্ক্রল লক
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = "unset";  // স্ক্রল আনলক
+      document.body.style.overflow = "unset";
     }
-    // ক্লিনআপ ফাংশন
     return () => {
       document.body.style.overflow = "unset";
     };
@@ -39,15 +34,14 @@ export default function Header() {
   ];
 
   return (
-    <header className="bg-white sticky top-0 z-50 shadow-sm font-[Kalpurush]">
+    <header className="bg-white sticky top-0 z-[100] shadow-sm font-[Kalpurush]">
       
-      <div className="max-w-screen-xl mx-auto px-4 py-2 md:py-0 flex flex-col md:flex-row items-center justify-between">
+      <div className="max-w-screen-xl mx-auto px-4 py-2 md:py-0 flex flex-col md:flex-row items-center justify-between bg-white relative z-[101]">
         <div className="flex justify-between items-center w-full md:w-auto">
           <Link href="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
             <Image src="/logo-banner-1.png" alt="Chandpur Nagorik Logo" width={300} height={80} className="object-contain h-14 md:h-[75px] w-auto" priority />
           </Link>
 
-          {/* মোবাইল মেনু বাটন */}
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="md:hidden flex flex-col justify-center items-center w-10 h-10 p-2 space-y-1.5 focus:outline-none ml-4 cursor-pointer"
@@ -75,13 +69,15 @@ export default function Header() {
         </div>
       </nav>
 
-      {/* মোবাইল মেনু (স্ক্রলবার হাইড করা হয়েছে) */}
+      {/* ========================================================================================= */}
+      {/* 💥 ম্যাজিক ফিক্স: style height বাদ দিয়ে সরাসরি top-[85px] এবং bottom-0 দেওয়া হয়েছে 💥 */}
+      {/* ========================================================================================= */}
       {isMenuOpen && (
         <nav 
-          className="md:hidden absolute top-full left-0 w-full bg-[#f4f4f5] border-t border-gray-200 overflow-y-auto z-50 flex flex-col [&::-webkit-scrollbar]:hidden" 
-          style={{ height: "calc(100vh - 75px)" }} 
+          className="md:hidden fixed top-[85px] left-0 right-0 bottom-0 bg-[#f4f4f5] border-t border-gray-200 overflow-y-auto z-[99]" 
         >
-          <ul className="flex flex-col flex-grow">
+          {/* min-h-full দেওয়া হয়েছে যাতে কনটেন্ট কম থাকলেও ফুটারটা একদম নিচে থাকে */}
+          <ul className="flex flex-col min-h-full">
             {categories.map((cat, index) => (
               <li key={index} className="border-b border-gray-300/60">
                 <Link href={cat.link} onClick={() => setIsMenuOpen(false)} className="block px-6 py-4 text-[18px] font-medium text-gray-800 hover:bg-gray-300 hover:text-[#116cb4] transition cursor-pointer">
@@ -89,7 +85,9 @@ export default function Header() {
                 </Link>
               </li>
             ))}
-            <li className="mt-auto border-t border-gray-300 bg-gray-200 p-6 text-center">
+            
+            {/* mt-auto এর কারণে এই ফুটার সবসময় একদম শেষে ধাক্কা খেয়ে থাকবে */}
+            <li className="mt-auto border-t border-gray-300 bg-gray-200 p-6 text-center pb-8">
               <p className="text-sm text-gray-600 font-medium">© ২০২৬ চাঁদপুর নাগরিক। সর্বস্বত্ব সংরক্ষিত।</p>
             </li>
           </ul>
