@@ -1,4 +1,15 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
 export default function BreakingNews() {
+  const pathname = usePathname();
+
+  // 💥 ম্যাজিক লজিক: যদি ইউজার নাগরিক সেবা (/sheba) পেজে থাকে, তাহলে ব্রেকিং নিউজ হাইড হয়ে যাবে
+  if (pathname?.startsWith("/sheba")) {
+    return null;
+  }
+
   return (
     <div className="bg-gray-100 border-y border-gray-200 overflow-hidden">
       <div className="max-w-screen-xl px-4 py-0 mx-auto flex items-center">

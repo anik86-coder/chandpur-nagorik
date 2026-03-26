@@ -61,7 +61,15 @@ export default function Header() {
           <ul className="flex flex-wrap gap-2 md:gap-3 py-3 font-medium justify-center">
             {categories.map((cat, index) => (
               <li key={index}>
-                <Link href={cat.link} className="bg-gray-700 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600 transition-colors block">
+                {/* [আপডেট]: শুধুমাত্র "নাগরিক সেবা" এর হোভার কালার নীল, বাকি সব আগের মতো লাল */}
+                <Link 
+                  href={cat.link} 
+                  className={`px-3 py-1.5 rounded text-sm transition-colors block ${
+                    cat.name === "নাগরিক সেবা" 
+                      ? "bg-gray-700 text-white hover:bg-[#116cb4]" 
+                      : "bg-gray-700 text-white hover:bg-red-600"
+                  }`}
+                >
                   {cat.name}
                 </Link>
               </li>
@@ -71,23 +79,30 @@ export default function Header() {
       </nav>
 
       {/* ========================================================================================= */}
-      {/* 💥 ম্যাজিক ফিক্স: style height বাদ দিয়ে সরাসরি top-[85px] এবং bottom-0 দেওয়া হয়েছে 💥 */}
+      {/* 💥 মোবাইল মেনু: top-[105px] দেওয়া হয়েছে যাতে লোগো আর না কাটে 💥 */}
       {/* ========================================================================================= */}
       {isMenuOpen && (
         <nav 
-          className="md:hidden fixed top-[85px] left-0 right-0 bottom-0 bg-[#f4f4f5] border-t border-gray-200 overflow-y-auto z-[99]" 
+          className="md:hidden fixed top-[105px] left-0 right-0 bottom-0 bg-[#f4f4f5] border-t border-gray-200 overflow-y-auto z-[99]" 
         >
-          {/* min-h-full দেওয়া হয়েছে যাতে কনটেন্ট কম থাকলেও ফুটারটা একদম নিচে থাকে */}
           <ul className="flex flex-col min-h-full">
             {categories.map((cat, index) => (
               <li key={index} className="border-b border-gray-300/60">
-                <Link href={cat.link} onClick={() => setIsMenuOpen(false)} className="block px-6 py-4 text-[18px] font-medium text-gray-800 hover:bg-gray-300 hover:text-[#116cb4] transition cursor-pointer">
+                {/* [আপডেট]: "নাগরিক সেবা" বাটনটি মোবাইলে হাইলাইট করা হয়েছে */}
+                <Link 
+                  href={cat.link} 
+                  onClick={() => setIsMenuOpen(false)} 
+                  className={`block px-6 py-4 text-[18px] font-medium transition cursor-pointer ${
+                    cat.name === "নাগরিক সেবা"
+                      ? "bg-[#116cb4] text-white hover:bg-blue-700"
+                      : "text-gray-800 hover:bg-gray-300 hover:text-[#116cb4]"
+                  }`}
+                >
                   {cat.name}
                 </Link>
               </li>
             ))}
             
-            {/* mt-auto এর কারণে এই ফুটার সবসময় একদম শেষে ধাক্কা খেয়ে থাকবে */}
             <li className="mt-auto border-t border-gray-300 bg-gray-200 p-6 text-center pb-8">
               <p className="text-sm text-gray-600 font-medium">© ২০২৬ চাঁদপুর নাগরিক। সর্বস্বত্ব সংরক্ষিত।</p>
             </li>
