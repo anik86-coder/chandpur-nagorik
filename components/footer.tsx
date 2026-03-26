@@ -17,7 +17,7 @@ export default function Footer() {
           <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-sm">
             <Link href="/" className="mb-4 inline-block">
               <Image
-                src="/logo-banner-1.png" // আপনার হেডারের লোগোটিই এখানে ব্যবহার করা হলো
+                src="/logo-banner-1.png" 
                 alt="Chandpur Nagorik Logo"
                 width={200}
                 height={60}
@@ -25,12 +25,15 @@ export default function Footer() {
               />
             </Link>
             <p className="text-gray-500 text-[15px] leading-relaxed">
-              সত্য ও বস্তুনিষ্ঠ সংবাদ সবার আগে আপনার কাছে পৌঁছে দিতে আমরা অঙ্গীকারবদ্ধ। চাঁদপুরের প্রতি মুহূর্তের খবর জানতে আমাদের সাথেই থাকুন।
+            সঠিক তথ্য এবং প্রয়োজনীয় নাগরিক সেবা পৌঁছে দেওয়াই আমাদের মূল লক্ষ্য। চাঁদপুরের মানুষের কল্যাণে সংবাদের পাশাপাশি সামাজিক সেবায় আমরা অঙ্গীকারবদ্ধ। সমৃদ্ধ চাঁদপুর গড়তে চাঁদপুর নাগরিক-এর সাথেই থাকুন।
             </p>
           </div>
 
           {/* প্রয়োজনীয় লিংকসমূহ */}
           <div className="flex flex-wrap justify-center md:justify-end gap-6 md:gap-8 text-[15px] font-semibold text-gray-700 mt-2 md:mt-4">
+            <Link href="/donation" className="hover:text-[#116cb4] transition-colors">
+              ডোনেশন
+            </Link>
             <Link href="/about" className="hover:text-[#116cb4] transition-colors">
               আমাদের সম্পর্কে
             </Link>
@@ -50,15 +53,11 @@ export default function Footer() {
         {/* ================================================================= */}
         {/* বটম সেকশন: কপিরাইট এবং সোশ্যাল আইকন */}
         {/* ================================================================= */}
-        <div className="border-t border-gray-100 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        {/* [আপডেট]: flex-col এবং items-center দিয়ে সব কিছু মাঝখানে আনা হয়েছে */}
+        <div className="border-t border-gray-100 pt-6 flex flex-col justify-center items-center gap-4">
           
-          {/* কপিরাইট টেক্সট */}
-          <p className="text-gray-400 text-sm font-medium tracking-wide">
-            © {year} চাঁদপুর নাগরিক। সর্বস্বত্ব সংরক্ষিত।
-          </p>
-
           {/* সোশ্যাল মিডিয়া আইকন (SVG) */}
-          <div className="flex gap-5 items-center">
+          <div className="flex gap-5 items-center justify-center">
             
             {/* Facebook */}
             <a href="https://facebook.com/chandpurnagorik" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#1877F2] transition-colors" aria-label="Facebook">
@@ -82,6 +81,12 @@ export default function Footer() {
             </a>
 
           </div>
+
+          {/* কপিরাইট টেক্সট (মাঝখানে) */}
+          <p className="text-gray-400 text-center font-medium tracking-wide">
+            © {year} চাঁদপুর নাগরিক। সর্বস্বত্ব সংরক্ষিত।
+          </p>
+
         </div>
 
       </div>

@@ -6,7 +6,7 @@ export default function BreakingNews() {
   const pathname = usePathname();
 
   // 💥 ম্যাজিক লজিক: যদি ইউজার নাগরিক সেবা (/sheba) পেজে থাকে, তাহলে ব্রেকিং নিউজ হাইড হয়ে যাবে
-  if (pathname?.startsWith("/sheba")) {
+  if (pathname?.startsWith("/sheba") || pathname?.startsWith("/donation")) {
     return null;
   }
 

@@ -48,21 +48,17 @@ export default function Home() {
   const bigNewsFiles = ["national-100002", "politics-100003"];
   const newsCardFiles = ["economy-100004", "sports-100005", "international-100006", "technology-100007", "entertainment-100008", "education-100009"];
   
-  // =====================================================================
-  // আপনার ম্যানুয়াল ৫টি শীর্ষ সংবাদের লিস্ট (এখানে নামগুলো পরিবর্তন করবেন)
-  // =====================================================================
   const topHighlightFiles = [
-    "2531478593",       // ১ নম্বর খবর
-    "chandpur-road",    // ২ নম্বর খবর 
-    "launch-terminal",  // ৩ নম্বর খবর
-    "2531478593",       // ৪ নম্বর খবর (৫টা পূরণের জন্য ডেমো দিলাম, আসল নাম বসাবেন)
-    "technology-100007"     // ৫ নম্বর খবর (৫টা পূরণের জন্য ডেমো দিলাম, আসল নাম বসাবেন)
+    "2531478593", 
+    "chandpur-road", 
+    "launch-terminal", 
+    "2531478593", 
+    "technology-100007" 
   ];
   
-  // ফাইলগুলো খুঁজে বের করা হচ্ছে
   const topHighlightNews = topHighlightFiles
     .map(fileName => allNews.find(post => post.slug === fileName))
-    .filter(Boolean) as any[]; // ভুল নাম দিলে সাইট ক্র্যাশ করবে না
+    .filter(Boolean) as any[]; 
     
   const nationalNews = allNews.filter(post => post.urlCategory === "national").slice(0, 5);
 
@@ -86,20 +82,32 @@ export default function Home() {
             <div className="md:pl-6"><BigNewsCard post={getPost(bigNewsFiles[1])} /></div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 md:gap-x-6 md:gap-y-6 mt-4 pt-2">
             {newsCardFiles.map((f, i) => (
-              <div key={i} className={`relative px-2 py-5 md:px-5 ${i < 3 ? "border-b border-gray-200" : ""}`}>
+              <div 
+                key={i} 
+                className={`relative py-3 md:py-0 ${
+                  i !== newsCardFiles.length - 1 ? "border-b border-gray-200 md:border-none" : ""
+                }`}
+              >
                 <NewsCard post={getPost(f)} />
-                {(i + 1) % 3 !== 0 && <div className="hidden md:block absolute right-0 top-3 bottom-3 w-px bg-gray-200"></div>}
+                
+                {(i + 1) % 3 !== 0 && (
+                  <div className="hidden md:block absolute right-[-12px] top-0 bottom-0 w-px bg-gray-200"></div>
+                )}
+                
+                {i < 3 && (
+                  <div className="hidden md:block absolute bottom-[-12px] left-0 right-0 h-px bg-gray-200"></div>
+                )}
               </div>
             ))}
           </div>
 
           {/* ===================================================================== */}
-          {/* ২. নতুন শীর্ষ সংবাদ সেকশন (ম্যানুয়াল ডাটা) */}
+          {/* ২. শীর্ষ সংবাদ সেকশন */}
           {/* ===================================================================== */}
           {topHighlightNews.length > 0 && (
-            <div className="mt-4 mb-0 bg-[#f4f5f7] border border-gray-200">
+            <div className="mt-8 mb-0 bg-[#f4f5f7] border border-gray-200">
               <div className="bg-[#116cb4] text-white text-center py-2 px-4 shadow-sm">
                 <h2 className="text-xl md:text-2xl font-bold">শীর্ষ সংবাদ</h2>
               </div>
@@ -116,7 +124,7 @@ export default function Home() {
                       className="w-full h-[100px] md:h-[110px] object-cover mb-2 border border-gray-300" 
                     />
                     <span className="text-[#116cb4] text-[13px] font-bold mb-1">{post.category}</span>
-                    <h3 className="text-gray-900 font-bold text-[15px] leading-snug group-hover:text-red-600 transition-colors">
+                    <h3 className="text-gray-900 font-bold text-[15px] leading-snug group-hover:text-red-600 transition-colors line-clamp-3">
                       {post.title}
                     </h3>
                   </Link>
@@ -129,13 +137,14 @@ export default function Home() {
           {/* ৩. সারাদেশ ও জাতীয় সেকশন */}
           {/* ===================================================================== */}
           {nationalNews.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-gray-300">
+            <div className="mt-8 pt-6 border-t border-gray-300">
               <div className="mb-6 border-b border-gray-300 pb-2">
                 <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-[#116cb4] pl-3">
                   সারাদেশ ও জাতীয়
                 </h2>
               </div>
 
+              {/* [আপডেট] Featured News (কোনো হোভার শ্যাডো/বক্স নেই, জাস্ট সিম্পল) */}
               <div className="flex flex-col md:flex-row gap-6 mb-8 group cursor-pointer items-stretch">
                 <div className="w-full md:w-[55%]">
                   <Link href={`/${nationalNews[0].urlCategory}/${nationalNews[0].slug}`}>
@@ -148,7 +157,7 @@ export default function Home() {
                 </div>
                 <div className="w-full md:w-[45%] flex flex-col py-1">
                   <Link href={`/${nationalNews[0].urlCategory}/${nationalNews[0].slug}`}>
-                    <h3 className="text-xl md:text-2xl font-bold group-hover:text-red-600 transition leading-tight">
+                    <h3 className="text-xl md:text-2xl font-bold group-hover:text-red-600 transition-colors leading-tight">
                       {nationalNews[0].title}
                     </h3>
                   </Link>
@@ -161,17 +170,18 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* [আপডেট] ছোট কার্ডগুলো (হালকা গ্রিড বর্ডার, সিম্পল লেআউট) */}
               {nationalNews.length > 1 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 border-t border-gray-200 pt-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
                   {nationalNews.slice(1, 5).map((post, i) => (
-                    <div key={i} className="group cursor-pointer">
-                      <Link href={`/${post.urlCategory}/${post.slug}`}>
+                    <div key={i} className="group cursor-pointer border border-gray-200 p-3 flex flex-col bg-white">
+                      <Link href={`/${post.urlCategory}/${post.slug}`} className="flex flex-col h-full">
                         <img 
                           src={post.image} 
                           alt={post.title} 
-                          className="w-full h-[120px] md:h-[140px] object-cover rounded mb-3 shadow-sm" 
+                          className="w-full h-[110px] md:h-[130px] object-cover rounded mb-3" 
                         />
-                        <h4 className="font-semibold text-[15px] md:text-base group-hover:text-red-600 transition leading-snug line-clamp-2">
+                        <h4 className="font-bold text-[15px] md:text-base text-gray-900 group-hover:text-red-600 transition-colors leading-snug line-clamp-3">
                           {post.title}
                         </h4>
                       </Link>
@@ -188,7 +198,7 @@ export default function Home() {
         {/* ডান দিকের কন্টেন্ট (Span 1 - Sidebar) */}
         {/* ===================================================================== */}
         <div className="lg:col-span-1">
-          <div className="sticky top-6">
+          <div className="sticky top-24">
              <Sidebar popularNews={popularNews} latestNews={latestNews} />
           </div>
         </div>
