@@ -48,12 +48,12 @@ export default function ContactPage() {
             <div className="bg-gray-50 p-6 rounded border border-gray-200">
               <h3 className="text-xl font-bold mb-3 text-[#116cb4]">প্রধান কার্যালয়</h3>
               <p className="text-gray-700 leading-relaxed">
-                চাঁদপুর নাগরিক ভবন<br/>
+                চাঁদপুর নাগরিক<br/>
                 হাসান আলী সরকারি উচ্চ বিদ্যালয় রোড,<br/>
                 চাঁদপুর সদর, চাঁদপুর-৩৬০০।
               </p>
               <div className="mt-4 text-gray-700">
-                <p><strong>মোবাইল:</strong> +৮৮০ ১৭XX-XXXXXX</p>
+
                 <p><strong>ইমেইল:</strong> info@chandpurnagorik.com</p>
               </div>
             </div>

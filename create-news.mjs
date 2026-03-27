@@ -13,7 +13,7 @@ const categories = [
   { en: "Chandpur", bn: "চাঁদপুর" },
   { en: "Politics", bn: "রাজনীতি" },
   { en: "Economy", bn: "অর্থনীতি" },
-  { en: "Sports", bn: "ক্রীড়া" },
+  { en: "Sports", bn: "ক্রীড়া" },
   { en: "International", bn: "আন্তর্জাতিক" },
   { en: "Technology", bn: "টেকনোলজি" },
   { en: "Entertainment", bn: "বিনোদন" },
@@ -37,15 +37,22 @@ console.log("\n----------------------------------");
 
 rl.question('👉 Enter category number (e.g., 1): ', (catIndex) => {
   const selectedIndex = parseInt(catIndex) - 1;
-  // Fallback to "সারাদেশ" (National) if input is invalid
+  
+  // খবরের ভেতরে (Frontmatter) সেভ করার জন্য বাংলার নাম
   const category = (categories[selectedIndex] && categories[selectedIndex].bn) ? categories[selectedIndex].bn : "সারাদেশ"; 
+  
+  // ফাইলের নামের শুরুতে যুক্ত করার জন্য ক্যাটাগরির ইংরেজি নাম (ছোট হাতের অক্ষরে)
+  const categoryFileName = (categories[selectedIndex] && categories[selectedIndex].en) ? categories[selectedIndex].en.toLowerCase() : "national";
 
   rl.question('👉 Enter post title: ', (title) => {
     rl.question('👉 Enter image URL (press Enter to skip): ', (image) => {
       rl.question('👉 Enter author name (press Enter to skip): ', (author) => {
 
-        // Generate 10-digit secret slug
-        const slug = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+        // ১০-ডিজিটের গোপন নাম্বার জেনারেট
+        const secretNum = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+        
+        // [আপডেট] নতুন স্লাগ/ফাইলের নাম: ক্যাটাগরি-গোপননাম্বার (যেমন: opinion-4902843907)
+        const slug = `${categoryFileName}-${secretNum}`;
 
         // Get current date and time
         const now = new Date();

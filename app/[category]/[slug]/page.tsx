@@ -85,12 +85,50 @@ const convertToBangla = (str: string) => {
   return converted.replace(/AM/i, "এএম").replace(/PM/i, "পিএম");
 };
 
+// ============================================================================
+// [আপডেট]: SEO (গুগল সার্চ ও ফেসবুক শেয়ারের জন্য Metadata জেনারেট করা হচ্ছে)
+// ============================================================================
+export async function generateMetadata({ params }: any) {
+  const { slug } = await params;
+  const filePath = path.join(process.cwd(), "content", "news", `${slug}.md`);
+
+  if (!fs.existsSync(filePath)) {
+    return { title: "খবর পাওয়া যায়নি | চাঁদপুর নাগরিক" };
+  }
+
+  const fileContent = fs.readFileSync(filePath, "utf8");
+  const { data } = matter(fileContent);
+
+  // ট্যাগগুলোকে কমা দিয়ে একটি স্ট্রিং বানানো হচ্ছে (SEO Keywords এর জন্য)
+  const metaKeywords = data.tags ? data.tags.join(", ") : "চাঁদপুর নাগরিক, সংবাদ, খবর, বাংলাদেশ";
+
+  return {
+    title: `${data.title} | চাঁদপুর নাগরিক`,
+    description: data.title, // গুগলে ডেসক্রিপশন হিসেবে দেখাবে
+    keywords: metaKeywords, // গুগল সার্চের কি-ওয়ার্ড
+    openGraph: {
+      title: data.title,
+      description: data.title,
+      images: data.image ? [data.image] : [],
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: data.title,
+      description: data.title,
+      images: data.image ? [data.image] : [],
+    },
+  };
+}
+// ============================================================================
+
 export default async function NewsDetailsPage({ params }: any) {
   const { slug } = await params;
 
   const filePath = path.join(process.cwd(), "content", "news", `${slug}.md`);
   
-  let data = { title: "", category: "", date: "", time: "", author: "", image: "" };
+  // ডাটা অবজেক্টে tags যুক্ত করা হয়েছে
+  let data = { title: "", category: "", date: "", time: "", author: "", image: "", tags: [] };
   let contentHtml = "<p>খবরটি পাওয়া যায়নি।</p>";
 
   if (fs.existsSync(filePath)) {
@@ -139,9 +177,32 @@ export default async function NewsDetailsPage({ params }: any) {
         )}
 
         <div 
-          className="text-lg text-gray-800 leading-relaxed prose prose-lg max-w-none"
+          className="text-lg text-gray-800 leading-relaxed prose prose-lg max-w-none mb-8"
           dangerouslySetInnerHTML={{ __html: contentHtml }} 
         />
+
+        {/* ===================================================================== */}
+        {/* ট্যাগ সেকশন (হালকা অ্যাশ ব্যাকগ্রাউন্ড, কালো টেক্সট) */}
+        {/* ===================================================================== */}
+        {data.tags && data.tags.length > 0 && (
+          <div className="mt-10 pt-6 border-t border-gray-200">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl"></span>
+              <h3 className="text-lg font-bold text-gray-800">ট্যাগসমূহ:</h3>
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              {data.tags.map((tag: string, index: number) => (
+                <span 
+                  key={index} 
+                  className="bg-gray-100 text-gray-800 px-3.5 py-1.5 rounded-md text-[15px] font-bold border border-gray-200 cursor-default select-none hover:bg-gray-200 transition-colors"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
       </article>
 
       {/* ডান পাশ: সাইডবার */}
