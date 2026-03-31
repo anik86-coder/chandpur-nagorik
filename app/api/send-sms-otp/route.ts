@@ -17,8 +17,8 @@ export async function POST(request: Request) {
     // গেটওয়ের জন্য মোবাইল নম্বর থেকে '+' চিহ্নটি সরিয়ে ফেলা (যেমন: +88017... থেকে 88017...)
     const formattedPhone = phoneNumber.replace('+', '');
 
-    // ৬-ডিজিটের র‍্যান্ডম OTP তৈরি করা
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // ⚠️ ফিক্স: ৪-ডিজিটের র‍্যান্ডম OTP তৈরি করা (যেহেতু আপনার অ্যাপ ৪ ডিজিট রিসিভ করে)
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
     // Environment Variable থেকে আপনার sms.net.bd এর API Key নেওয়া
     const apiKey = process.env.SMS_API_KEY; 
