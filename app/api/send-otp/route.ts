@@ -34,7 +34,7 @@ export async function POST(request: Request) {
               আপনার স্ট্যাটাস আপডেট বা ডিলিট করার জন্য নিচে দেওয়া <strong>৬-ডিজিটের</strong> ভেরিফিকেশন কোডটি ব্যবহার করুন:
             </p>
             <div style="background-color: #fef2f2; border: 2px dashed #ff7875; padding: 20px; border-radius: 10px; margin-bottom: 30px; display: inline-block; min-width: 250px;">
-              <h1 style="color: #cf1322; font-size: 42px; letter-spacing: 12px; margin: 0; font-family: monospace;">${otp}</h1>
+              <h1 style="color: #cf1322; font-size: 32px; letter-spacing: 6px; margin: 0; font-family: monospace;">${otp}</h1>
             </div>
             <p style="color: #95a5a6; font-size: 14px; line-height: 1.6;">
               এই কোডটির মেয়াদ আগামী <strong>৫ মিনিট</strong> পর্যন্ত থাকবে।
