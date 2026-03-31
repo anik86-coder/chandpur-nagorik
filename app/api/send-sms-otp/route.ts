@@ -1,53 +1,71 @@
 import { NextResponse } from 'next/server';
-import { db } from "../../../firebase"; // আপনার ফায়ারবেস ইমপোর্ট
+import { Resend } from 'resend';
+import { db } from "../../../firebase";
 import { doc, setDoc } from "firebase/firestore";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
-    const { phoneNumber } = await request.json();
+    const { email } = await request.json();
 
-    if (!phoneNumber) {
-      return NextResponse.json({ success: false, message: 'Phone number is required' }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ message: 'Email is required' }, { status: 400 });
     }
 
-    // ৪-ডিজিটের র‍্যান্ডম OTP তৈরি করা
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    // ৬-ডিজিটের র‍্যান্ডম OTP তৈরি
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // sms.net.bd-এর API-তে রিকোয়েস্ট পাঠানো
-    const apiKey = 'qC8KT547Xl8MbitaOcPlw9kAcJZQIk6P3GxWCx84'; // আপনার আসল API Key এখানে বসাবেন
-    const message = `চাঁদপুর নাগরিক অ্যাপে আপনার লগইন কোড: ${otp}`;
-
-    const smsResponse = await fetch('https://api.sms.net.bd/sendsms', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        api_key: apiKey,
-        msg: message,
-        to: phoneNumber,
-      }),
+    // Resend দিয়ে ইমেইল সেন্ড করা এবং সুন্দর HTML টেমপ্লেট যুক্ত করা
+    const { data, error } = await resend.emails.send({
+      // ⚠️ আপনার ভেরিফাই করা ডোমেইনের ইমেইলটি এখানে দিন:
+      from: 'Chandpur Nagorik <info@chandpurnagorik.com>', 
+      to: email,
+      subject: `আপনার ব্লাড ব্যাংক ভেরিফিকেশন কোড: ${otp}`,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f7f6; padding: 30px; border-radius: 12px;">
+          <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.05); text-align: center;">
+            
+            <div style="width: 70px; height: 70px; background-color: #ff4d4f; border-radius: 50%; line-height: 70px; color: white; font-size: 35px; margin: 0 auto 20px; box-shadow: 0 4px 10px rgba(255, 77, 79, 0.3);">🩸</div>
+            
+            <h2 style="color: #2c3e50; font-size: 24px; margin-bottom: 10px;">চাঁদপুর নাগরিক ব্লাড ব্যাংক</h2>
+            <p style="color: #6c7a89; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+              আপনার স্ট্যাটাস আপডেট করার জন্য নিচে দেওয়া <strong>৬-ডিজিটের</strong> ভেরিফিকেশন কোডটি ব্যবহার করুন:
+            </p>
+            
+            <div style="background-color: #fef2f2; border: 2px dashed #ff7875; padding: 20px; border-radius: 10px; margin-bottom: 30px; display: inline-block; min-width: 250px;">
+              <h1 style="color: #cf1322; font-size: 42px; letter-spacing: 12px; margin: 0; font-family: monospace;">${otp}</h1>
+            </div>
+            
+            <p style="color: #95a5a6; font-size: 14px; line-height: 1.6;">
+              এই কোডটির মেয়াদ আগামী <strong>৫ মিনিট</strong> পর্যন্ত থাকবে। সুরক্ষার স্বার্থে এই কোডটি কারো সাথে শেয়ার করবেন না।
+            </p>
+            
+            <hr style="border: none; border-top: 1px solid #eeeeee; margin: 40px 0 20px;">
+            <p style="color: #bdc3c7; font-size: 12px; margin: 0;">
+              ধন্যবাদান্তে,<br><strong style="color: #95a5a6;">টিম চাঁদপুর নাগরিক</strong>
+            </p>
+          </div>
+        </div>
+      `,
     });
 
-    const smsResult = await smsResponse.json();
-
-    // SMS সফলভাবে গেলে ফায়ারবেসে সেভ করা
-    if (smsResult.error === 0) { 
-      const expireTime = Date.now() + 5 * 60 * 1000; // ৫ মিনিট মেয়াদ
-      
-      // "phone_otps" নামের নতুন একটি কালেকশনে নম্বর দিয়ে সেভ করা
-      await setDoc(doc(db, "phone_otps", phoneNumber), {
-        otp: otp,
-        expiresAt: expireTime
-      });
-
-      return NextResponse.json({ success: true, message: 'OTP sent successfully' }, { status: 200 });
-    } else {
-      return NextResponse.json({ success: false, message: 'Failed to send SMS' }, { status: 500 });
+    if (error) {
+      console.error('Resend error:', error);
+      return NextResponse.json({ message: 'Failed to send OTP' }, { status: 400 });
     }
 
+    // ফায়ারবেস ডেটাবেসে OTP সেভ করা (৫ মিনিট মেয়াদ)
+    const expireTime = Date.now() + 5 * 60 * 1000;
+    await setDoc(doc(db, "otps", email), {
+      otp: otp,
+      expiresAt: expireTime
+    });
+
+    return NextResponse.json({ message: 'OTP sent successfully' }, { status: 200 });
+
   } catch (error) {
-    console.error('Error sending SMS OTP:', error);
-    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+    console.error('Error in send-otp route:', error);
+    return NextResponse.json({ message: 'Server error' }, { status: 500 });
   }
 }
