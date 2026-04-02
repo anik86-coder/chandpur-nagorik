@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     // 🎯 ফিক্স: অটো-ফিল এবং আন্ডারলাইন (Copy) হওয়ার জন্য গ্লোবাল স্ট্যান্ডার্ড ফরম্যাট
     // ব্র্যাকেট এবং 'OTP' শব্দ থাকার কারণে মোবাইল ফোন সাথে সাথেই এটাকে রিড করতে পারবে।
-    const message = `<#> [${otp}] is your Chandpur Nagorik OTP code.`;
+    const message = `${otp} হলো আপনার চাঁদপুর নাগরিক অ্যাপের OTP.`;
 
     // API তে রিকোয়েস্ট পাঠানোর জন্য URLSearchParams ব্যবহার
     const params = new URLSearchParams();
