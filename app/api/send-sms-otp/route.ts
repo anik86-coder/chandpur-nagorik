@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
     }
 
-    const message = `চাঁদপুর নাগরিক অ্যাপে আপনার লগইন কোড: ${otp}`;
+    const message = `চাঁদপুর নাগরিক অ্যাপে ${otp} আপনার লগইন কোড।`;
 
     // API তে রিকোয়েস্ট পাঠানোর জন্য URLSearchParams ব্যবহার
     const params = new URLSearchParams();
