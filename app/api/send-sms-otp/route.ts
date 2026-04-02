@@ -14,13 +14,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Phone number is required' }, { status: 400 });
     }
 
-    // গেটওয়ের জন্য মোবাইল নম্বর থেকে '+' চিহ্নটি সরিয়ে ফেলা (যেমন: +88017... থেকে 88017...)
+    // গেটওয়ের জন্য মোবাইল নম্বর থেকে '+' চিহ্নটি সরিয়ে ফেলা 
     const formattedPhone = phoneNumber.replace('+', '');
 
-    // ⚠️ ফিক্স: ৪-ডিজিটের র‍্যান্ডম OTP তৈরি করা (যেহেতু আপনার অ্যাপ ৪ ডিজিট রিসিভ করে)
+    // ৪-ডিজিটের র‍্যান্ডম OTP তৈরি করা 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Environment Variable থেকে আপনার sms.net.bd এর API Key নেওয়া
+    // Environment Variable থেকে SMS API Key নেওয়া
     const apiKey = process.env.SMS_API_KEY; 
     
     if (!apiKey) {
@@ -28,7 +28,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
     }
 
-    const message = `চাঁদপুর নাগরিক অ্যাপে ${otp} আপনার লগইন কোড।`;
+    // 🎯 ফিক্স: অটো-ফিল এবং আন্ডারলাইন (Copy) হওয়ার জন্য গ্লোবাল স্ট্যান্ডার্ড ফরম্যাট
+    // ব্র্যাকেট এবং 'OTP' শব্দ থাকার কারণে মোবাইল ফোন সাথে সাথেই এটাকে রিড করতে পারবে।
+    const message = `<#> [${otp}] is your Chandpur Nagorik OTP code.`;
 
     // API তে রিকোয়েস্ট পাঠানোর জন্য URLSearchParams ব্যবহার
     const params = new URLSearchParams();
