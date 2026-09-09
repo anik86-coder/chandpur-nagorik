@@ -3,7 +3,6 @@ import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 
 import Header from "../components/header";
-import BreakingNews from "../components/breakingnews";
 import Footer from "../components/footer";
 
 /* Fonts */
@@ -26,7 +25,8 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Chandpur Nagorik",
-  description: "Latest news from Chandpur",
+  description:
+    "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় নাগরিক সেবা ও তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম",
 };
 
 export default function RootLayout({
@@ -36,21 +36,17 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="bn"
       className={`${poppins.variable} ${geistSans.variable} ${geistMono.variable}`}
     >
       <body className="min-h-screen flex flex-col">
-
         <Header />
-
-        <BreakingNews />
 
         <main className="flex-1">
           {children}
         </main>
 
         <Footer />
-
       </body>
     </html>
   );
