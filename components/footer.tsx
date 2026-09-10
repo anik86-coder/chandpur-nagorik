@@ -25,7 +25,7 @@ export default function Footer() {
               />
             </Link>
             <p className="text-gray-500 text-[15px] leading-relaxed">
-            প্রয়োজনীয় নাগরিক সেবা সহজভাবে মানুষের কাছে পৌঁছে দেওয়াই আমাদের মূল লক্ষ্য। চাঁদপুরের মানুষের দৈনন্দিন প্রয়োজন ও কল্যাণে বিভিন্ন নাগরিক সেবা প্রদানে আমরা অঙ্গীকারবদ্ধ। মানুষের সেবায়, মানুষের পাশে—চাঁদপুর নাগরিক।
+            চাঁদপুরের মানুষের দৈনন্দিন প্রয়োজন ও কল্যাণে বিভিন্ন নাগরিক সেবা প্রদানে আমরা অঙ্গীকারবদ্ধ। মানুষের সেবায়, মানুষের পাশে—চাঁদপুর নাগরিক।
             </p>
           </div>
 
@@ -46,6 +46,9 @@ export default function Footer() {
             <Link href="/terms" className="hover:text-[#116cb4] transition-colors">
               শর্তাবলী
             </Link>
+            <Link href="/opinion" className="hover:text-[#116cb4] transition-colors">
+    মতামত
+  </Link>
           </div>
 
         </div>

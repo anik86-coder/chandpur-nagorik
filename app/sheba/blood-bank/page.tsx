@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "../../../firebase"; 
-import { collection, onSnapshot, setDoc, updateDoc, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer, setDoc, updateDoc, doc, type DocumentSnapshot } from "firebase/firestore";
 
 const checkAvailability = (lastDonationDate: string) => {
   if (!lastDonationDate) return true;
@@ -16,12 +16,15 @@ const checkAvailability = (lastDonationDate: string) => {
 const bloodGroups = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 
 // [নোট]: টেস্ট করার জন্য লিমিট ২ করে দেওয়া হয়েছে, পরে আপনি এটি ১০০ করে দিতে পারেন
-const DONORS_PER_PAGE = 50;
+const DONORS_PER_PAGE = 25;
 
 export default function BloodBankPage() {
   const [donors, setDonors] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  const [pageCursors, setPageCursors] = useState<Record<string, DocumentSnapshot | null>>({});
   const [revealedPhone, setRevealedPhone] = useState<string | null>(null);
 
   const [detailsModal, setDetailsModal] = useState<any | null>(null);
@@ -37,6 +40,9 @@ export default function BloodBankPage() {
 
   // [নতুন]: পেজিনেশন স্টেট
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalDonors, setTotalDonors] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [maxVisitedPage, setMaxVisitedPage] = useState(1);
 
   const [formData, setFormData] = useState({ 
     name: "", group: "A+", phone: "+88", dob: "", address: "", disease: "", allergy: "", email: "" 
@@ -50,83 +56,137 @@ export default function BloodBankPage() {
   };
 
   useEffect(() => {
-    const savedGroup = localStorage.getItem("selectedBloodGroup");
-    const isFormOpen = localStorage.getItem("showBloodForm");
-    const savedPage = localStorage.getItem("donorCurrentPage"); 
-
-    if (isFormOpen === "true") {
-      setShowForm(true);
-    } else if (savedGroup && bloodGroups.includes(savedGroup)) {
-      setSelectedGroup(savedGroup);
-    }
-
-    if (savedPage) {
-      setCurrentPage(parseInt(savedPage, 10));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (detailsModal || loginModal.isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
-    }
-    return () => { document.body.style.overflow = "auto"; };
-  }, [detailsModal, loginModal.isOpen]);
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "donors"), (snapshot) => {
-      const donorsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setDonors(donorsList);
-      setLoading(false);
-    }, (error) => {
-      console.error("ডাটা লোড করতে সমস্যা হচ্ছে: ", error);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const filteredDonors = donors.filter(d => d.group === selectedGroup);
-
-  // [নতুন]: পেজিনেশনের হিসাব
-  const totalPages = Math.ceil(filteredDonors.length / DONORS_PER_PAGE);
-  const indexOfLastDonor = currentPage * DONORS_PER_PAGE;
-  const indexOfFirstDonor = indexOfLastDonor - DONORS_PER_PAGE;
-  const currentDonors = filteredDonors.slice(indexOfFirstDonor, indexOfLastDonor);
-
-  // কারেন্ট পেজ ডিলিট হলে আগের পেজে পাঠানো
-  useEffect(() => {
-    if (filteredDonors.length > 0 && currentDonors.length === 0 && currentPage > 1) {
-      handlePageChange(currentPage - 1);
-    }
-  }, [filteredDonors.length, currentDonors.length, currentPage]);
-
-  const handleGroupSelect = (bg: string) => {
-    setSelectedGroup(bg);
     setShowForm(false);
-    setCurrentPage(1); 
-    localStorage.setItem("donorCurrentPage", "1");
-    localStorage.setItem("selectedBloodGroup", bg);
-    localStorage.removeItem("showBloodForm");
+    setSelectedGroup(null);
+    setDonors([]);
+    setCurrentPage(1);
+    setLoading(false);
+    setIsPageLoading(false);
+  }, []);
+
+  const loadDonorPage = async (
+    group: string,
+    pageNumber: number,
+    cursor: DocumentSnapshot | null = null
+  ) => {
+    // IMPORTANT: set loading BEFORE clearing/replacing donor data.
+    // This prevents the "no donor" message from flashing during A+ ↔ A-
+    // or any other group/page change.
+    setIsPageLoading(true);
+    setLoading(true);
+
+    try {
+      const donorsQuery = cursor
+        ? query(
+            collection(db, "donors"),
+            where("group", "==", group),
+            orderBy("createdAt", "desc"),
+            startAfter(cursor),
+            limit(DONORS_PER_PAGE + 1)
+          )
+        : query(
+            collection(db, "donors"),
+            where("group", "==", group),
+            orderBy("createdAt", "desc"),
+            limit(DONORS_PER_PAGE + 1)
+          );
+
+      const snapshot = await getDocs(donorsQuery);
+      const docs = snapshot.docs;
+      const pageDocs = docs.slice(0, DONORS_PER_PAGE);
+      const nextPageExists = docs.length > DONORS_PER_PAGE;
+
+      // Set the new page data before turning loading off.
+      setDonors(pageDocs.map(d => ({ id: d.id, ...d.data() })));
+      setHasNextPage(nextPageExists);
+      setCurrentPage(pageNumber);
+      setMaxVisitedPage(prev => Math.max(prev, pageNumber));
+
+      if (pageDocs.length) {
+        setPageCursors(prev => ({
+          ...prev,
+          [`${group}-${pageNumber + 1}`]: pageDocs[pageDocs.length - 1],
+        }));
+      }
+    } catch (error) {
+      console.error("ডোনার ডাটা লোড করতে সমস্যা হচ্ছে:", error);
+      setDonors([]);
+      setHasNextPage(false);
+      showToast("ডাটা লোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।", "error");
+    } finally {
+      // Only now can the empty-state message be considered.
+      setLoading(false);
+      setIsPageLoading(false);
+    }
+  };
+
+  const handleGroupSelect = async (bg: string) => {
+    setShowForm(false);
+    setSelectedGroup(bg);
+
+    // Keep loading state active BEFORE donor list is cleared.
+    // This guarantees shimmer appears immediately instead of empty-state text.
+    setLoading(true);
+    setIsPageLoading(true);
+    setDonors([]);
+    setCurrentPage(1);
+    setMaxVisitedPage(1);
+    setHasNextPage(false);
+    setPageCursors({});
+    setTotalDonors(0);
+    setTotalPages(0);
+
+    try {
+      const countSnapshot = await getCountFromServer(
+        query(collection(db, "donors"), where("group", "==", bg))
+      );
+
+      const count = countSnapshot.data().count;
+      setTotalDonors(count);
+      setTotalPages(Math.ceil(count / DONORS_PER_PAGE));
+
+      await loadDonorPage(bg, 1, null);
+    } catch (error) {
+      console.error("গ্রুপের ডাটা লোড করতে সমস্যা হচ্ছে:", error);
+      setDonors([]);
+      setHasNextPage(false);
+      setTotalDonors(0);
+      setTotalPages(0);
+      setLoading(false);
+      setIsPageLoading(false);
+      showToast("ডাটা লোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।", "error");
+    }
   };
 
   const handleOpenForm = () => {
-    setShowForm(true);
-    setSelectedGroup(null);
-    localStorage.setItem("showBloodForm", "true"); 
-    localStorage.removeItem("selectedBloodGroup");
+    setShowForm(true); setSelectedGroup(null); setDonors([]);
   };
 
   const handleCloseForm = () => {
-    setShowForm(false);
-    localStorage.removeItem("showBloodForm"); 
+    setShowForm(false); setSelectedGroup(null);
   };
 
   const handlePageChange = (pageNumber: number) => {
-    setCurrentPage(pageNumber);
-    localStorage.setItem("donorCurrentPage", pageNumber.toString());
-    window.scrollTo({ top: 400, behavior: 'smooth' }); 
+    if (!selectedGroup || pageNumber < 1 || isPageLoading) return;
+
+    const cursor =
+      pageNumber === 1
+        ? null
+        : pageCursors[`${selectedGroup}-${pageNumber}`] ?? null;
+
+    // With cursor pagination, only pages whose cursor is known are clickable.
+    if (pageNumber > currentPage && (!hasNextPage || !cursor)) return;
+    if (pageNumber < currentPage && pageNumber > 1 && !cursor) return;
+
+    // Turn loading on before changing the visible donor data.
+    setIsPageLoading(true);
+    setLoading(true);
+
+    loadDonorPage(selectedGroup, pageNumber, cursor);
+    window.scrollTo({ top: 400, behavior: "smooth" });
   };
+
+  const currentDonors = donors;
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -150,14 +210,12 @@ export default function BloodBankPage() {
     }
 
     const trimmedEmail = formData.email.trim().toLowerCase();
-    const emailExists = donors.some(d => d.email?.trim().toLowerCase() === trimmedEmail);
-
-    if (emailExists) {
-      showToast("এই ইমেইল দিয়ে আগে থেকেই একটি অ্যাকাউন্ট খোলা আছে!", "error");
-      return;
-    }
-
     try {
+      const emailSnapshot = await getDocs(query(collection(db, "donors"), where("email", "==", trimmedEmail), limit(1)));
+      if (!emailSnapshot.empty) {
+        showToast("এই ইমেইল দিয়ে আগে থেকেই একটি অ্যাকাউন্ট খোলা আছে!", "error");
+        return;
+      }
       const donorDataToSave = {
         name: formData.name,
         group: formData.group,
@@ -171,22 +229,27 @@ export default function BloodBankPage() {
         createdAt: new Date().toISOString()
       };
 
-      let uniqueId = "";
-      let isUnique = false;
-      
-      while (!isUnique) {
-        const randomId = Math.floor(10000 + Math.random() * 90000).toString(); 
-        const idCheckSnap = await getDoc(doc(db, "donors", randomId));
-        if (!idCheckSnap.exists()) {
-          uniqueId = randomId;
-          isUnique = true;
-        }
-      }
-
+      const uniqueId = `${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
       await setDoc(doc(db, "donors", uniqueId), donorDataToSave);
-      
-      handleGroupSelect(formData.group); 
       setFormData({ name: "", group: "A+", phone: "+88", dob: "", address: "", disease: "", allergy: "", email: "" });
+      setShowForm(false);
+      setSelectedGroup(formData.group);
+      setDonors([]);
+      setCurrentPage(1);
+      setMaxVisitedPage(1);
+      setHasNextPage(false);
+      setPageCursors({});
+      setLoading(true);
+      setIsPageLoading(true);
+
+      const countSnapshot = await getCountFromServer(
+        query(collection(db, "donors"), where("group", "==", formData.group))
+      );
+      const count = countSnapshot.data().count;
+      setTotalDonors(count);
+      setTotalPages(Math.ceil(count / DONORS_PER_PAGE));
+
+      await loadDonorPage(formData.group, 1, null);
       showToast("সফলভাবে নিবন্ধন সম্পন্ন হয়েছে!");
 
     } catch (error: any) {
@@ -322,25 +385,129 @@ export default function BloodBankPage() {
                   {selectedGroup} রক্তের ডোনার তালিকা
                 </h3>
                 <span className="bg-white border border-gray-200 text-gray-700 text-sm font-bold px-3 py-1 rounded-md shadow-sm">
-                  মোট: <span className="text-red-600">{filteredDonors.length}</span> জন
+                  দেখানো: <span className="text-red-600">{currentDonors.length}</span> জন{hasNextPage ? " +" : ""}
                 </span>
               </div>
               
-              {loading ? (
-                <p className="text-center py-10 text-gray-500">ডাটা লোড হচ্ছে...</p>
+              {loading || isPageLoading ? (
+                <div className="space-y-4" aria-label="ডোনার লোড হচ্ছে">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="p-5 rounded-lg border border-gray-200 bg-white shadow-sm animate-pulse"
+                    >
+                      <div className="flex justify-between items-center gap-4">
+                        <div className="flex-1">
+                          <div className="h-6 bg-gray-200 rounded w-2/5 mb-4" />
+                          <div className="h-4 bg-gray-200 rounded w-1/3 mb-3" />
+                          <div className="h-3 bg-gray-200 rounded w-1/4 mb-4" />
+                          <div className="h-7 bg-gray-200 rounded-full w-36" />
+                        </div>
+                        <div className="h-10 bg-gray-200 rounded-lg w-28" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : currentDonors.length > 0 ? (
                 <>
+                  {/* Pagination — only above donor list */}
+                  {(totalPages > 1 || totalDonors > 0) && (
+                    <div className="flex flex-col items-center mb-6 bg-gray-50 py-4 px-3 rounded-xl border border-gray-200 shadow-sm">
+                      <div className="flex flex-wrap justify-center items-center gap-2">
+                        <button
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1 || isPageLoading}
+                          className="px-4 py-2 rounded-lg font-bold text-sm border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 text-gray-700 bg-white"
+                        >
+                          ← পূর্ববর্তী
+                        </button>
+
+                        {(() => {
+                          if (totalPages <= 5) {
+                            return Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                              <button
+                                key={page}
+                                onClick={() => handlePageChange(page)}
+                                disabled={page > maxVisitedPage || isPageLoading}
+                                className={`min-w-10 px-3 py-2 rounded-lg font-bold text-sm border transition-all ${
+                                  currentPage === page
+                                    ? "bg-red-600 text-white border-red-600 shadow-md"
+                                    : page > maxVisitedPage
+                                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                      : "bg-white text-gray-700 border-gray-200 hover:bg-red-50 hover:text-red-600"
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ));
+                          }
+
+                          let startPage = 1;
+                          let endPage = 5;
+
+                          if (currentPage >= totalPages - 2) {
+                            startPage = Math.max(1, totalPages - 4);
+                            endPage = totalPages;
+                          } else if (currentPage >= 4) {
+                            startPage = currentPage - 2;
+                            endPage = currentPage + 2;
+                          }
+
+                          const pages = Array.from(
+                            { length: endPage - startPage + 1 },
+                            (_, i) => startPage + i
+                          );
+
+                          return (
+                            <>
+                              {pages.map(page => (
+                                <button
+                                  key={page}
+                                  onClick={() => handlePageChange(page)}
+                                  disabled={page > maxVisitedPage || isPageLoading}
+                                  className={`min-w-10 px-3 py-2 rounded-lg font-bold text-sm border transition-all ${
+                                    currentPage === page
+                                      ? "bg-red-600 text-white border-red-600 shadow-md"
+                                      : page > maxVisitedPage
+                                        ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                        : "bg-white text-gray-700 border-gray-200 hover:bg-red-50 hover:text-red-600"
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              ))}
+                              {endPage < totalPages && (
+                                <span className="px-1 text-gray-500 font-bold">…</span>
+                              )}
+                            </>
+                          );
+                        })()}
+
+                        <button
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={!hasNextPage || isPageLoading}
+                          className="px-4 py-2 rounded-lg font-bold text-sm border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-700 text-white bg-red-600"
+                        >
+                          {isPageLoading ? "লোড হচ্ছে..." : "পরবর্তী →"}
+                        </button>
+                      </div>
+
+                      <div className="text-xs text-gray-500 font-semibold mt-2">
+                        মোট {totalDonors} জন ডোনার • পেজ {currentPage} / {totalPages}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-4">
-                    {/* [আপডেট]: filteredDonors এর বদলে currentDonors দিয়ে ম্যাপ করা হয়েছে */}
                     {currentDonors.map(donor => {
                       const isAvailable = checkAvailability(donor.lastDonation);
-                      
+
                       return (
                         <div key={donor.id} className={`p-5 rounded-lg border ${isAvailable ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-gray-50 opacity-75'} hover:shadow-md transition-shadow`}>
                           <div className="flex justify-between items-center">
                             <div className="flex-1">
                               <h4 className="font-bold text-xl text-gray-900">{donor.name}</h4>
-                              
+
                               {donor.address && (
                                 <div className="mt-1.5 mb-2">
                                   <span className="bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-sans">
@@ -351,9 +518,9 @@ export default function BloodBankPage() {
                                   </span>
                                 </div>
                               )}
-                              
-                              <div 
-                                className="flex items-center gap-1.5 mt-1 cursor-pointer group w-fit transition-all" 
+
+                              <div
+                                className="flex items-center gap-1.5 mt-1 cursor-pointer group w-fit transition-all"
                                 onClick={() => {
                                   navigator.clipboard.writeText(donor.id);
                                   setCopiedId(donor.id);
@@ -371,7 +538,7 @@ export default function BloodBankPage() {
                                   </span>
                                 ) : (
                                   <svg className="w-3 h-3 text-gray-400 group-hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012 2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 002 2v8a2 2 0 002 2z" />
                                   </svg>
                                 )}
                               </div>
@@ -383,14 +550,14 @@ export default function BloodBankPage() {
 
                             <div className="text-right">
                               {isAvailable ? (
-                                <button 
-                                  onClick={() => { setDetailsModal(donor); setRevealedPhone(null); }} 
+                                <button
+                                  onClick={() => { setDetailsModal(donor); setRevealedPhone(null); }}
                                   className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
                                 >
                                   বিস্তারিত দেখুন
                                 </button>
                               ) : (
-                                <button 
+                                <button
                                   disabled
                                   className="bg-gray-100 text-gray-400 border border-gray-200 text-sm px-4 py-2 rounded-lg font-bold cursor-not-allowed"
                                 >
@@ -403,48 +570,11 @@ export default function BloodBankPage() {
                       );
                     })}
                   </div>
-
-                  {/* [নতুন]: পেজিনেশন বাটনসমূহ (যদি ১ পেজের বেশি ডেটা থাকে) */}
-                  {totalPages > 1 && (
-                    <div className="flex flex-col items-center mt-10 mb-4 bg-gray-50 py-4 rounded-xl border border-gray-200 shadow-sm">
-                      <div className="flex justify-center items-center gap-2 mb-3">
-                        <button 
-                          onClick={() => handlePageChange(currentPage - 1)} 
-                          disabled={currentPage === 1}
-                          className="px-4 py-2 rounded-lg font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 text-gray-700 bg-white"
-                        >
-                          পূর্ববর্তী
-                        </button>
-                        
-                        <div className="flex gap-1 overflow-x-auto max-w-[200px] no-scrollbar">
-                          {[...Array(totalPages)].map((_, i) => (
-                            <button
-                              key={i}
-                              onClick={() => handlePageChange(i + 1)}
-                              className={`min-w-[40px] h-10 rounded-lg font-bold text-sm transition-all border ${currentPage === i + 1 ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}
-                            >
-                              {i + 1}
-                            </button>
-                          ))}
-                        </div>
-
-                        <button 
-                          onClick={() => handlePageChange(currentPage + 1)} 
-                          disabled={currentPage === totalPages}
-                          className="px-4 py-2 rounded-lg font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 text-gray-700 bg-white"
-                        >
-                          পরবর্তী
-                        </button>
-                      </div>
-                      
-                      <div className="text-xs text-gray-500 font-semibold">
-                        পেজ {currentPage} / {totalPages}
-                      </div>
-                    </div>
-                  )}
                 </>
               ) : (
-                <p className="text-center py-10 text-gray-500 bg-gray-50 rounded border border-dashed">এই গ্রুপের কোনো ডোনার আপাতত নেই। আপনি প্রথম হতে পারেন!</p>
+                <p className="text-center py-10 text-gray-500 bg-gray-50 rounded border border-dashed">
+                  এই গ্রুপের কোনো ডোনার আপাতত নেই। আপনি প্রথম হতে পারেন!
+                </p>
               )}
             </div>
           )}
