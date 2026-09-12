@@ -25,20 +25,11 @@ export default function ServicesPage() {
     },
 
     {
-      title: "হাসপাতাল ও ক্লিনিক",
-      icon: "🏥",
-      link: "/sheba/hospital",
-    },
-    {
-      title: "অ্যাম্বুলেন্স",
-      icon: "🚑",
-      link: "/sheba/ambulance",
-    },
-    {
-      title: "ফায়ার সার্ভিস",
-      icon: "🚒",
-      link: "/sheba/fire-service",
-    },
+  title: "হাসপাতাল ও স্বাস্থ্যসেবা",
+  icon: "🏥",
+  link: "/sheba/health",
+},
+    
     {
       title: "পুলিশ ও থানা",
       icon: "🚓",

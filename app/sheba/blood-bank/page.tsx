@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { db } from "../../../firebase"; 
-import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer, setDoc, updateDoc, doc, type DocumentSnapshot } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer, updateDoc, doc, documentId, type DocumentSnapshot } from "firebase/firestore";
 
 const checkAvailability = (lastDonationDate: string) => {
   if (!lastDonationDate) return true;
@@ -14,6 +16,48 @@ const checkAvailability = (lastDonationDate: string) => {
 };
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
+const toPublicDonor = (donorDoc: DocumentSnapshot) => {
+  const data = donorDoc.data() || {};
+
+  // Sensitive phone intentionally excluded from the public Firestore payload.
+  return {
+    id: donorDoc.id,
+    name: data.name || "",
+    group: data.group || "",
+    dob: data.dob || "",
+    address: data.address || "",
+    disease: data.disease || "",
+    allergy: data.allergy || "",
+    email: data.email || "",
+    lastDonation: data.lastDonation || "",
+    createdAt: data.createdAt || "",
+  };
+};
+
+const sortDonorsByAvailability = (donorList: any[]) => {
+  return [...donorList].sort((a, b) => {
+    const aAvailable = checkAvailability(a.lastDonation);
+    const bAvailable = checkAvailability(b.lastDonation);
+
+    // ১) যারা এখন রক্ত দিতে পারবেন তারা সবসময় আগে থাকবে।
+    if (aAvailable !== bAvailable) return aAvailable ? -1 : 1;
+
+    // ২) যারা গত ৯০ দিনের মধ্যে রক্ত দিয়েছেন তারা শেষে থাকবে।
+    //    তাদের মধ্যে যে আগে রক্ত দিয়েছে সে আগে, নতুন donation শেষে।
+    if (!aAvailable && !bAvailable) {
+      const aDonation = a.lastDonation ? new Date(a.lastDonation).getTime() : 0;
+      const bDonation = b.lastDonation ? new Date(b.lastDonation).getTime() : 0;
+
+      if (aDonation !== bDonation) return aDonation - bDonation;
+    }
+
+    // একই status/date হলে Firestore-এর createdAt newest-first order বজায় রাখি।
+    const aTime = a.createdAt?.toMillis?.() ?? (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+    const bTime = b.createdAt?.toMillis?.() ?? (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+    return bTime - aTime;
+  });
+};
+
 
 // [নোট]: টেস্ট করার জন্য লিমিট ২ করে দেওয়া হয়েছে, পরে আপনি এটি ১০০ করে দিতে পারেন
 const DONORS_PER_PAGE = 25;
@@ -21,11 +65,15 @@ const DONORS_PER_PAGE = 25;
 export default function BloodBankPage() {
   const [donors, setDonors] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [pageCursors, setPageCursors] = useState<Record<string, DocumentSnapshot | null>>({});
   const [revealedPhone, setRevealedPhone] = useState<string | null>(null);
+
+  // Cloudflare Turnstile — phone number reveal protection
+  const [showTurnstile, setShowTurnstile] = useState(false);
+  const [turnstileLoading, setTurnstileLoading] = useState(false);
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   const [detailsModal, setDetailsModal] = useState<any | null>(null);
   const [loginModal, setLoginModal] = useState({ isOpen: false, donorId: null as string | null });
@@ -37,16 +85,57 @@ export default function BloodBankPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const requestIdRef = useRef(0);
 
   // [নতুন]: পেজিনেশন স্টেট
   const [currentPage, setCurrentPage] = useState(1);
   const [totalDonors, setTotalDonors] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [maxVisitedPage, setMaxVisitedPage] = useState(1);
+  // নির্বাচিত গ্রুপের পুরো sorted list — pagination এই list থেকেই হবে।
+  const [allGroupDonors, setAllGroupDonors] = useState<any[]>([]);
 
-  const [formData, setFormData] = useState({ 
-    name: "", group: "A+", phone: "+88", dob: "", address: "", disease: "", allergy: "", email: "" 
-  });
+
+  const currentDonors = donors;
+
+  const handlePageChange = async (pageNumber: number) => {
+    if (!selectedGroup || pageNumber < 1 || isPageLoading) return;
+    if (pageNumber === currentPage) return;
+    if (totalPages > 0 && pageNumber > totalPages) return;
+
+    const requestId = ++requestIdRef.current;
+    setIsPageLoading(true);
+    setLoading(true);
+
+    try {
+      // Global sorting আগে হয়েছে; তাই page slice করার পরেও serial ঠিক থাকবে।
+      const startIndex = (pageNumber - 1) * DONORS_PER_PAGE;
+      const pageDonors = allGroupDonors.slice(
+        startIndex,
+        startIndex + DONORS_PER_PAGE
+      );
+
+      if (requestId !== requestIdRef.current) return;
+
+      setDonors(pageDonors);
+      setHasNextPage(startIndex + DONORS_PER_PAGE < allGroupDonors.length);
+      setCurrentPage(pageNumber);
+      setMaxVisitedPage(prev => Math.max(prev, pageNumber));
+      window.scrollTo({ top: 400, behavior: "smooth" });
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      console.error("ডোনার পেজ লোড করতে সমস্যা হচ্ছে:", error);
+      showToast("ডাটা লোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।", "error");
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setIsPageLoading(false);
+      }
+    }
+  };
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ show: true, message, type });
@@ -55,80 +144,63 @@ export default function BloodBankPage() {
     }, 3000);
   };
 
-  useEffect(() => {
-    setShowForm(false);
-    setSelectedGroup(null);
-    setDonors([]);
-    setCurrentPage(1);
-    setLoading(false);
-    setIsPageLoading(false);
-  }, []);
-
   const loadDonorPage = async (
     group: string,
     pageNumber: number,
     cursor: DocumentSnapshot | null = null
   ) => {
-    // IMPORTANT: set loading BEFORE clearing/replacing donor data.
-    // This prevents the "no donor" message from flashing during A+ ↔ A-
-    // or any other group/page change.
     setIsPageLoading(true);
     setLoading(true);
 
     try {
-      const donorsQuery = cursor
-        ? query(
-            collection(db, "donors"),
-            where("group", "==", group),
-            orderBy("createdAt", "desc"),
-            startAfter(cursor),
-            limit(DONORS_PER_PAGE + 1)
-          )
-        : query(
-            collection(db, "donors"),
-            where("group", "==", group),
-            orderBy("createdAt", "desc"),
-            limit(DONORS_PER_PAGE + 1)
-          );
+      const snapshot = await getDocs(
+        query(
+          collection(db, "donors"),
+          where("group", "==", group),
+          orderBy("createdAt", "desc")
+        )
+      );
 
-      const snapshot = await getDocs(donorsQuery);
-      const docs = snapshot.docs;
-      const pageDocs = docs.slice(0, DONORS_PER_PAGE);
-      const nextPageExists = docs.length > DONORS_PER_PAGE;
+      const sortedDonors = sortDonorsByAvailability(
+        snapshot.docs.map(toPublicDonor)
+      );
 
-      // Set the new page data before turning loading off.
-      setDonors(pageDocs.map(d => ({ id: d.id, ...d.data() })));
-      setHasNextPage(nextPageExists);
+      setAllGroupDonors(sortedDonors);
+      setTotalDonors(sortedDonors.length);
+      setTotalPages(Math.ceil(sortedDonors.length / DONORS_PER_PAGE));
+
+      const startIndex = (pageNumber - 1) * DONORS_PER_PAGE;
+      const pageDonors = sortedDonors.slice(
+        startIndex,
+        startIndex + DONORS_PER_PAGE
+      );
+
+      setDonors(pageDonors);
+      setHasNextPage(startIndex + DONORS_PER_PAGE < sortedDonors.length);
       setCurrentPage(pageNumber);
       setMaxVisitedPage(prev => Math.max(prev, pageNumber));
-
-      if (pageDocs.length) {
-        setPageCursors(prev => ({
-          ...prev,
-          [`${group}-${pageNumber + 1}`]: pageDocs[pageDocs.length - 1],
-        }));
-      }
     } catch (error) {
       console.error("ডোনার ডাটা লোড করতে সমস্যা হচ্ছে:", error);
       setDonors([]);
+      setAllGroupDonors([]);
       setHasNextPage(false);
       showToast("ডাটা লোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।", "error");
     } finally {
-      // Only now can the empty-state message be considered.
       setLoading(false);
       setIsPageLoading(false);
     }
   };
 
   const handleGroupSelect = async (bg: string) => {
-    setShowForm(false);
+    const requestId = ++requestIdRef.current;
     setSelectedGroup(bg);
+    setSearchTerm("");
+    setIsSearchActive(false);
 
-    // Keep loading state active BEFORE donor list is cleared.
-    // This guarantees shimmer appears immediately instead of empty-state text.
     setLoading(true);
     setIsPageLoading(true);
     setDonors([]);
+    setAllGroupDonors([]);
     setCurrentPage(1);
     setMaxVisitedPage(1);
     setHasNextPage(false);
@@ -137,124 +209,215 @@ export default function BloodBankPage() {
     setTotalPages(0);
 
     try {
-      const countSnapshot = await getCountFromServer(
-        query(collection(db, "donors"), where("group", "==", bg))
+      // পুরো group একবার নিয়ে GLOBAL sorting করা হচ্ছে।
+      // ফলে 100 জনের মধ্যে 10 জন donated হলে সেই 10 জন
+      // সবসময় 91-100 এর দিকে থাকবে, page অনুযায়ী আলাদা আলাদা নয়।
+      const snapshot = await getDocs(
+        query(
+          collection(db, "donors"),
+          where("group", "==", bg),
+          orderBy("createdAt", "desc")
+        )
       );
 
-      const count = countSnapshot.data().count;
-      setTotalDonors(count);
-      setTotalPages(Math.ceil(count / DONORS_PER_PAGE));
+      if (requestId !== requestIdRef.current) return;
 
-      await loadDonorPage(bg, 1, null);
+      const sortedDonors = sortDonorsByAvailability(
+        snapshot.docs.map(toPublicDonor)
+      );
+
+      setAllGroupDonors(sortedDonors);
+      setTotalDonors(sortedDonors.length);
+      setTotalPages(Math.ceil(sortedDonors.length / DONORS_PER_PAGE));
+
+      const firstPage = sortedDonors.slice(0, DONORS_PER_PAGE);
+      setDonors(firstPage);
+      setHasNextPage(sortedDonors.length > DONORS_PER_PAGE);
+      setCurrentPage(1);
+      setMaxVisitedPage(1);
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+
       console.error("গ্রুপের ডাটা লোড করতে সমস্যা হচ্ছে:", error);
       setDonors([]);
+      setAllGroupDonors([]);
       setHasNextPage(false);
       setTotalDonors(0);
       setTotalPages(0);
-      setLoading(false);
-      setIsPageLoading(false);
       showToast("ডাটা লোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।", "error");
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setIsPageLoading(false);
+      }
     }
   };
 
-  const handleOpenForm = () => {
-    setShowForm(true); setSelectedGroup(null); setDonors([]);
-  };
+  const handleSearch = async () => {
+    const term = searchTerm.trim().toLowerCase();
 
-  const handleCloseForm = () => {
-    setShowForm(false); setSelectedGroup(null);
-  };
+    // Search only works after a blood group is selected.
+    if (!selectedGroup) return;
 
-  const handlePageChange = (pageNumber: number) => {
-    if (!selectedGroup || pageNumber < 1 || isPageLoading) return;
+    if (!term) {
+      await handleGroupSelect(selectedGroup);
+      return;
+    }
 
-    const cursor =
-      pageNumber === 1
-        ? null
-        : pageCursors[`${selectedGroup}-${pageNumber}`] ?? null;
+    const requestId = ++requestIdRef.current;
+    setIsSearchActive(true);
 
-    // With cursor pagination, only pages whose cursor is known are clickable.
-    if (pageNumber > currentPage && (!hasNextPage || !cursor)) return;
-    if (pageNumber < currentPage && pageNumber > 1 && !cursor) return;
-
-    // Turn loading on before changing the visible donor data.
-    setIsPageLoading(true);
     setLoading(true);
+    setIsPageLoading(true);
+    setCurrentPage(1);
+    setMaxVisitedPage(1);
+    setHasNextPage(false);
+    setPageCursors({});
+    setTotalDonors(0);
+    setTotalPages(0);
 
-    loadDonorPage(selectedGroup, pageNumber, cursor);
-    window.scrollTo({ top: 400, behavior: "smooth" });
-  };
-
-  const currentDonors = donors;
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    if (!val.startsWith("+88")) {
-      setFormData({ ...formData, phone: "+88" });
-      return;
-    }
-    const onlyDigits = val.substring(3).replace(/\D/g, ""); 
-    setFormData({ ...formData, phone: "+88" + onlyDigits });
-  };
-
-  const handleRegister = async () => {
-    if (!formData.name.trim() || !formData.dob || !formData.address.trim() || !formData.email.trim()) {
-      showToast("অনুগ্রহ করে নাম, জন্মতারিখ, ঠিকানা এবং ইমেইল পূরণ করুন!", "error");
-      return;
-    }
-
-    if (formData.phone.length !== 14) {
-      showToast("অনুগ্রহ করে সঠিক ১১-ডিজিটের মোবাইল নম্বর দিন!", "error");
-      return;
-    }
-
-    const trimmedEmail = formData.email.trim().toLowerCase();
     try {
-      const emailSnapshot = await getDocs(query(collection(db, "donors"), where("email", "==", trimmedEmail), limit(1)));
-      if (!emailSnapshot.empty) {
-        showToast("এই ইমেইল দিয়ে আগে থেকেই একটি অ্যাকাউন্ট খোলা আছে!", "error");
+      const results: any[] = [];
+
+      // Exact Donor ID search — restricted to the selected blood group.
+      const idSnapshot = await getDocs(
+        query(
+          collection(db, "donors"),
+          where(documentId(), "==", term)
+        )
+      );
+
+      if (requestId !== requestIdRef.current) return;
+
+      idSnapshot.forEach(d => {
+        const data = d.data();
+
+        // IMPORTANT: a donor from another blood group will never appear.
+        if (data.group === selectedGroup) {
+          results.push(toPublicDonor(d));
+        }
+      });
+
+      // Name search — only inside the currently selected blood group.
+      const nameSnapshot = await getDocs(
+        query(
+          collection(db, "donors"),
+          where("group", "==", selectedGroup),
+          orderBy("createdAt", "desc")
+        )
+      );
+
+      if (requestId !== requestIdRef.current) return;
+
+      nameSnapshot.forEach(d => {
+        const data = d.data();
+        const name = String(data.name || "").toLowerCase();
+
+        if (
+          name.includes(term) &&
+          !results.some(result => result.id === d.id)
+        ) {
+          results.push(toPublicDonor(d));
+        }
+      });
+
+      const sortedResults = sortDonorsByAvailability(results);
+      setAllGroupDonors(sortedResults);
+      setDonors(sortedResults);
+      setTotalDonors(sortedResults.length);
+      setTotalPages(results.length > 0 ? 1 : 0);
+      setHasNextPage(false);
+      setCurrentPage(1);
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+
+      console.error("সার্চ করতে সমস্যা হচ্ছে:", error);
+      setDonors([]);
+      setTotalDonors(0);
+      setTotalPages(0);
+      showToast("সার্চ করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।", "error");
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setIsPageLoading(false);
+      }
+    }
+  };
+
+  const handleClearSearch = () => {
+    requestIdRef.current++;
+    setSearchTerm("");
+    setIsSearchActive(false);
+    searchInputRef.current?.focus();
+
+    if (selectedGroup) {
+      handleGroupSelect(selectedGroup);
+    }
+  };
+
+  // Open CAPTCHA before showing a donor's phone number
+  const handlePhoneReveal = () => {
+    if (!detailsModal) return;
+
+    setRevealedPhone(null);
+    setTurnstileLoading(false);
+    setTurnstileKey((prev) => prev + 1);
+    setShowTurnstile(true);
+  };
+
+  // Verify the Turnstile token on the server before revealing the phone
+  const handleTurnstileSuccess = async (token: string) => {
+    if (!detailsModal) return;
+
+    setTurnstileLoading(true);
+
+    try {
+      const res = await fetch("/api/reveal-donor-phone", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          token,
+          donorId: detailsModal.id,
+        }),
+      });
+
+      const data = await res.json();
+
+      console.log("PHONE REVEAL SERVER RESPONSE:", {
+        success: data?.success,
+        errorCodes: data?.errorCodes || [],
+      });
+
+      if (!res.ok || !data.success || !data.phone) {
+        showToast(
+          data.message || "মোবাইল নম্বর দেখানো যায়নি।",
+          "error"
+        );
+
+        setShowTurnstile(false);
+        setTurnstileKey((prev) => prev + 1);
         return;
       }
-      const donorDataToSave = {
-        name: formData.name,
-        group: formData.group,
-        phone: formData.phone,
-        dob: formData.dob,
-        address: formData.address,
-        disease: formData.disease,
-        allergy: formData.allergy,
-        email: trimmedEmail, 
-        lastDonation: "", 
-        createdAt: new Date().toISOString()
-      };
 
-      const uniqueId = `${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
-      await setDoc(doc(db, "donors", uniqueId), donorDataToSave);
-      setFormData({ name: "", group: "A+", phone: "+88", dob: "", address: "", disease: "", allergy: "", email: "" });
-      setShowForm(false);
-      setSelectedGroup(formData.group);
-      setDonors([]);
-      setCurrentPage(1);
-      setMaxVisitedPage(1);
-      setHasNextPage(false);
-      setPageCursors({});
-      setLoading(true);
-      setIsPageLoading(true);
+      // Server verification-এর পর server থেকেই phone পাওয়া যাচ্ছে।
+      setRevealedPhone(data.phone);
+      setShowTurnstile(false);
 
-      const countSnapshot = await getCountFromServer(
-        query(collection(db, "donors"), where("group", "==", formData.group))
+      showToast("যাচাই সফল হয়েছে। মোবাইল নম্বর দেখানো হচ্ছে।");
+    } catch (error) {
+      console.error("Phone reveal error:", error);
+
+      showToast(
+        "মোবাইল নম্বর দেখাতে সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+        "error"
       );
-      const count = countSnapshot.data().count;
-      setTotalDonors(count);
-      setTotalPages(Math.ceil(count / DONORS_PER_PAGE));
 
-      await loadDonorPage(formData.group, 1, null);
-      showToast("সফলভাবে নিবন্ধন সম্পন্ন হয়েছে!");
-
-    } catch (error: any) {
-      console.error("রেজিস্ট্রেশন এরর:", error);
-      showToast("নিবন্ধন করতে সমস্যা হয়েছে। আবার চেষ্টা করুন。", "error");
+      setShowTurnstile(false);
+      setTurnstileKey((prev) => prev + 1);
+    } finally {
+      setTurnstileLoading(false);
     }
   };
 
@@ -301,34 +464,81 @@ export default function BloodBankPage() {
       return;
     }
 
+    if (!loginModal.donorId) {
+      showToast("ডোনারের তথ্য পাওয়া যায়নি। আবার চেষ্টা করুন।", "error");
+      return;
+    }
+
     setIsProcessing(true);
+
     try {
       const res = await fetch('/api/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail.trim().toLowerCase(), otp: loginOtp })
+        body: JSON.stringify({
+          email: loginEmail.trim().toLowerCase(),
+          otp: loginOtp,
+        })
       });
 
       const data = await res.json();
 
-      if (res.ok) {
-        if (loginModal.donorId) {
-          const todayStr = new Date().toISOString().split('T')[0];
-          const donorRef = doc(db, "donors", loginModal.donorId);
-          
-          await updateDoc(donorRef, { lastDonation: todayStr });
-          setRevealedPhone(null);
-          showToast("ধন্যবাদ! আপনার রক্ত দেওয়ার তথ্য সফলভাবে আপডেট করা হয়েছে।");
-        }
-        closeModal();
-      } else {
-        showToast(data.message || "ভুল OTP দেওয়া হয়েছে বা মেয়াদ শেষ।", "error");
+      if (!res.ok) {
+        showToast(
+          data.message || "ভুল OTP দেওয়া হয়েছে বা মেয়াদ শেষ।",
+          "error"
+        );
+        return;
       }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const donorId = loginModal.donorId;
+      const donorRef = doc(db, "donors", donorId);
+
+      // Firestore-এ donation date update
+      await updateDoc(donorRef, {
+        lastDonation: todayStr,
+      });
+
+      // Global donor list-এও একই update করা হচ্ছে।
+      // এখন donorটি unavailable হয়ে donated section-এর একদম শেষে যাবে,
+      // আর অন্য page-গুলোতেও একই serial বজায় থাকবে।
+      setAllGroupDonors(prev => {
+        const target = prev.find(d => d.id === donorId);
+        if (!target) return prev;
+
+        const others = prev.filter(d => d.id !== donorId);
+        const updatedDonor = { ...target, lastDonation: todayStr };
+        return sortDonorsByAvailability([...others, updatedDonor]);
+      });
+
+      setDonors(prev => {
+        const target = prev.find(d => d.id === donorId);
+        if (!target) return prev;
+
+        // Current page-এর local preview-ও global list অনুযায়ী rebuild হবে।
+        const updatedDonor = { ...target, lastDonation: todayStr };
+        const updatedAll = sortDonorsByAvailability(
+          allGroupDonors.map(d => d.id === donorId ? updatedDonor : d)
+        );
+        const startIndex = (currentPage - 1) * DONORS_PER_PAGE;
+        return updatedAll.slice(startIndex, startIndex + DONORS_PER_PAGE);
+      });
+
+      closeModal();
+
+      showToast(
+        "ধন্যবাদ! আপনার রক্ত দেওয়ার তথ্য সফলভাবে আপডেট করা হয়েছে।"
+      );
     } catch (error) {
-      console.error("Error verifying OTP:", error);
-      showToast("ভেরিফাই করতে সমস্যা হচ্ছে。", "error");
+      console.error("Error verifying/updating donor:", error);
+      showToast(
+        "স্ট্যাটাস আপডেট করতে সমস্যা হচ্ছে। আবার চেষ্টা করুন।",
+        "error"
+      );
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
   const closeModal = () => {
@@ -336,10 +546,15 @@ export default function BloodBankPage() {
     setLoginEmail("");
     setLoginOtp("");
     setOtpSent(false);
+
+    setShowTurnstile(false);
+    setTurnstileLoading(false);
+    setRevealedPhone(null);
+    setTurnstileKey((prev) => prev + 1);
   };
 
   return (
-    <main className="max-w-screen-md mx-auto px-4 py-8 font-[Kalpurush] min-h-screen relative">
+    <main className="max-w-screen-md mx-auto px-4 py-5 font-[Kalpurush] min-h-screen relative">
       
       {toast.show && (
         <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-lg shadow-lg text-white font-bold transition-all duration-300 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
@@ -347,16 +562,16 @@ export default function BloodBankPage() {
         </div>
       )}
 
-      <div className="text-center mb-10 pb-6">
+      <div className="text-center mt-3 mb-6 pb-3">
         <h1 className="text-3xl md:text-4xl font-bold text-red-600 mb-3 flex items-center justify-center gap-2">
           <span>🩸</span> ব্লাড ব্যাংক
         </h1>
         <p className="text-gray-600 text-[17px]">জরুরি মুহূর্তে রক্তের সন্ধানে আমরা আছি আপনার পাশে।</p>
       </div>
 
-      {!showForm ? (
-        <>
-          <div className="grid grid-cols-4 gap-3 mb-8">
+      <>
+
+          <div className="grid grid-cols-4 gap-3 mb-5">
             {bloodGroups.map(bg => (
               <button 
                 key={bg} 
@@ -368,19 +583,19 @@ export default function BloodBankPage() {
             ))}
           </div>
 
-          <div className="text-center mt-6 mb-10 border-b border-gray-200 pb-8">
-             <button 
-              onClick={handleOpenForm}
-              className="bg-red-600 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-red-700 transition shadow-lg w-full md:w-auto"
+          <div className="text-center mt-2 mb-4 border-b border-gray-200 pb-4">
+            <Link
+              href="/sheba/blood-bank/register"
+              className="inline-flex items-center justify-center bg-red-600 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-red-700 transition shadow-lg w-full md:w-auto"
             >
               আমি রক্ত দিতে চাই 🩸
-            </button>
+            </Link>
             <p className="text-gray-500 text-sm mt-3">আপনি চাইলে নিজে রক্তদাতা হিসেবে যুক্ত হতে পারেন</p>
           </div>
 
           {selectedGroup && (
             <div>
-              <div className="flex justify-between items-center mb-5 border-l-4 border-red-600 pl-3 bg-gray-50 py-2.5 pr-4 rounded-r-lg shadow-sm border-y border-r border-gray-100">
+              <div className="flex justify-between items-center mb-3 border-l-4 border-red-600 pl-3 bg-gray-50 py-2.5 pr-4 rounded-r-lg shadow-sm border-y border-r border-gray-100">
                 <h3 className="text-xl font-bold text-gray-800">
                   {selectedGroup} রক্তের ডোনার তালিকা
                 </h3>
@@ -389,8 +604,66 @@ export default function BloodBankPage() {
                 </span>
               </div>
               
+              {/* Search — opens only after a blood group is selected */}
+              <div className="mb-4">
+                <div className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50 via-white to-gray-50 p-3 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 text-lg">
+                      🔎
+                    </span>
+
+                    <div className="relative flex-1">
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSearchTerm(value);
+
+                          // Backspace দিয়ে পুরো সার্চ লেখা মুছে ফেললে
+                          // X চাপার মতোই আবার নির্বাচিত গ্রুপের সব ডাটা দেখাবে।
+                          if (!value.trim()) {
+                            handleClearSearch();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSearch();
+                          }
+                        }}
+                        placeholder="ডোনারের নাম বা 8-digit Donor ID..."
+                        className="w-full h-12 border border-gray-200 bg-white rounded-xl px-10 outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100 text-gray-800 text-base text-center shadow-sm transition-all"
+                        aria-label={`${selectedGroup} গ্রুপে ডোনার খুঁজুন`}
+                      />
+                    </div>
+
+                    {searchTerm.trim() && (
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="shrink-0 h-14 w-16 flex items-center justify-center rounded-xl bg-gray-100 border-2 border-gray-300 text-gray-600 text-4xl font-bold leading-none hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all shadow-md"
+                        aria-label="সার্চ মুছুন"
+                        title="সার্চ মুছুন"
+                      >
+                        ×
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleSearch}
+                      disabled={isPageLoading || !searchTerm.trim()}
+                      className="shrink-0 h-12 min-w-[120px] px-7 rounded-xl bg-red-600 text-white font-bold text-base hover:bg-red-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all"
+                    >
+                      {isPageLoading ? "খোঁজা হচ্ছে..." : "খুঁজুন"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {loading || isPageLoading ? (
-                <div className="space-y-4" aria-label="ডোনার লোড হচ্ছে">
+                <div className="space-y-2" aria-label="ডোনার লোড হচ্ছে">
                   {Array.from({ length: 5 }).map((_, index) => (
                     <div
                       key={index}
@@ -410,9 +683,81 @@ export default function BloodBankPage() {
                 </div>
               ) : currentDonors.length > 0 ? (
                 <>
-                  {/* Pagination — only above donor list */}
-                  {(totalPages > 1 || totalDonors > 0) && (
-                    <div className="flex flex-col items-center mb-6 bg-gray-50 py-4 px-3 rounded-xl border border-gray-200 shadow-sm">
+                  <div className="space-y-2">
+                    {currentDonors.map(donor => {
+                      const isAvailable = checkAvailability(donor.lastDonation);
+
+                      return (
+                        <div key={donor.id} className={`p-5 rounded-lg border ${isAvailable ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-gray-50 opacity-75'} hover:shadow-md transition-shadow`}>
+                          <div className="flex justify-between items-center">
+                            <div className="flex-1">
+                              <h4 className="font-bold text-xl text-gray-900">{donor.name}</h4>
+
+                              {donor.address && (
+                                <div className="mt-1.5 mb-2">
+                                  <span className="bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-sans">
+                                    <svg className="w-3.5 h-3.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                                    </svg>
+                                    {donor.address}
+                                  </span>
+                                </div>
+                              )}
+
+                              <div
+                                className="flex items-center gap-1.5 mt-1 cursor-pointer group w-fit transition-all"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(donor.id);
+                                  setCopiedId(donor.id);
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }}
+                                title="ID কপি করতে ক্লিক করুন"
+                              >
+                                <p className="text-xs font-normal text-gray-400 group-hover:text-gray-600 transition-colors">
+                                  ID: <span className="font-mono font-bold text-gray-600 tracking-wider select-all">{donor.id}</span>
+                                </p>
+
+                                {copiedId === donor.id ? (
+                                  <span className="text-[9px] font-bold text-green-600 bg-green-50 px-1 rounded flex items-center font-sans">
+                                    Copied!
+                                  </span>
+                                ) : (
+                                  <svg className="w-3 h-3 text-gray-400 group-hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012 2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 002 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                )}
+                              </div>
+
+                              <span className={`inline-block mt-3 px-3 py-1.5 text-sm font-bold rounded-full ${isAvailable ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                                {isAvailable ? '✅ রক্ত দিতে প্রস্তুত' : '⏳ এখন পারবেন না'}
+                              </span>
+                            </div>
+
+                            <div className="text-right">
+                              {isAvailable ? (
+                                <button
+                                  onClick={() => { setDetailsModal(donor); setRevealedPhone(null); }}
+                                  className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                >
+                                  বিস্তারিত দেখুন
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="bg-gray-100 text-gray-400 border border-gray-200 text-sm px-4 py-2 rounded-lg font-bold cursor-not-allowed"
+                                >
+                                  অ্যাভেইলেবল নয়
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Pagination — only once at the bottom */}
+                  {!searchTerm.trim() && (totalPages > 1 || totalDonors > 0) && (
+                    <div className="flex flex-col items-center mt-4 mb-4 bg-gray-50 py-3 px-3 rounded-xl border border-gray-200 shadow-sm">
                       <div className="flex flex-wrap justify-center items-center gap-2">
                         <button
                           onClick={() => handlePageChange(currentPage - 1)}
@@ -498,146 +843,17 @@ export default function BloodBankPage() {
                     </div>
                   )}
 
-                  <div className="space-y-4">
-                    {currentDonors.map(donor => {
-                      const isAvailable = checkAvailability(donor.lastDonation);
-
-                      return (
-                        <div key={donor.id} className={`p-5 rounded-lg border ${isAvailable ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-gray-50 opacity-75'} hover:shadow-md transition-shadow`}>
-                          <div className="flex justify-between items-center">
-                            <div className="flex-1">
-                              <h4 className="font-bold text-xl text-gray-900">{donor.name}</h4>
-
-                              {donor.address && (
-                                <div className="mt-1.5 mb-2">
-                                  <span className="bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-sans">
-                                    <svg className="w-3.5 h-3.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                                    </svg>
-                                    {donor.address}
-                                  </span>
-                                </div>
-                              )}
-
-                              <div
-                                className="flex items-center gap-1.5 mt-1 cursor-pointer group w-fit transition-all"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(donor.id);
-                                  setCopiedId(donor.id);
-                                  setTimeout(() => setCopiedId(null), 2000);
-                                }}
-                                title="ID কপি করতে ক্লিক করুন"
-                              >
-                                <p className="text-xs font-normal text-gray-400 group-hover:text-gray-600 transition-colors">
-                                  ID: <span className="font-mono font-bold text-gray-600 tracking-wider select-all">{donor.id}</span>
-                                </p>
-
-                                {copiedId === donor.id ? (
-                                  <span className="text-[9px] font-bold text-green-600 bg-green-50 px-1 rounded flex items-center font-sans">
-                                    Copied!
-                                  </span>
-                                ) : (
-                                  <svg className="w-3 h-3 text-gray-400 group-hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012 2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 002 2v8a2 2 0 002 2z" />
-                                  </svg>
-                                )}
-                              </div>
-
-                              <span className={`inline-block mt-3 px-3 py-1.5 text-sm font-bold rounded-full ${isAvailable ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
-                                {isAvailable ? '✅ রক্ত দিতে প্রস্তুত' : '⏳ এখন পারবেন না'}
-                              </span>
-                            </div>
-
-                            <div className="text-right">
-                              {isAvailable ? (
-                                <button
-                                  onClick={() => { setDetailsModal(donor); setRevealedPhone(null); }}
-                                  className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                >
-                                  বিস্তারিত দেখুন
-                                </button>
-                              ) : (
-                                <button
-                                  disabled
-                                  className="bg-gray-100 text-gray-400 border border-gray-200 text-sm px-4 py-2 rounded-lg font-bold cursor-not-allowed"
-                                >
-                                  অ্যাভেইলেবল নয়
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
                 </>
               ) : (
                 <p className="text-center py-10 text-gray-500 bg-gray-50 rounded border border-dashed">
-                  এই গ্রুপের কোনো ডোনার আপাতত নেই। আপনি প্রথম হতে পারেন!
+                  {searchTerm.trim()
+                    ? `“${searchTerm.trim()}” দিয়ে ${selectedGroup} গ্রুপে কোনো ডোনার পাওয়া যায়নি।`
+                    : "এই গ্রুপের কোনো ডোনার আপাতত নেই। আপনি প্রথম হতে পারেন!"}
                 </p>
               )}
             </div>
           )}
         </>
-      ) : (
-        <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-lg mb-8 max-w-2xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-800 mb-8 border-b-2 border-red-100 pb-3">রক্তদাতা নিবন্ধন ফর্ম</h2>
-          
-          <div className="grid gap-6">
-            <div>
-              <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">আপনার পুরো নাম *</label>
-              <input type="text" placeholder="যেমন: মো. সাঈদুর রহমান" className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">রক্তের গ্রুপ *</label>
-                <select className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg cursor-pointer" value={formData.group} onChange={e => setFormData({...formData, group: e.target.value})}>
-                  {bloodGroups.map(bg => <option key={bg} value={bg}>{bg}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">মোবাইল নম্বর *</label>
-                <input type="tel" className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg tracking-wider" value={formData.phone} onChange={handlePhoneChange} maxLength={14} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">জন্মতারিখ *</label>
-                <input type="date" className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg cursor-pointer" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">বর্তমান ঠিকানা *</label>
-                <input type="text" placeholder="যেমন: হাজীগঞ্জ, চাঁদপুর" className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">কোনো রোগ বা অ্যালার্জি আছে কি? (ঐচ্ছিক)</label>
-              <input type="text" placeholder="না থাকলে ফাঁকা রাখুন" className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg" value={formData.disease} onChange={e => setFormData({...formData, disease: e.target.value})} />
-            </div>
-            
-            <div className="bg-red-50 p-4 rounded-xl mt-4 border border-red-100">
-              <label className="text-xs text-red-600 font-bold uppercase tracking-wider">আপনার ইমেইল এড্রেস *</label>
-              <p className="text-xs text-gray-500 mb-2 mt-1">ভবিষ্যতে প্রোফাইল আপডেট করার জন্য সঠিক ইমেইল দিন (এখানেই OTP যাবে):</p>
-              <input type="email" placeholder="example@gmail.com" className="w-full border-b-2 border-red-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4 mt-6">
-              <button 
-                onClick={handleRegister}
-                className="bg-red-600 text-white py-3 px-6 rounded-lg w-full font-bold hover:bg-red-700 shadow-md transition-all text-lg"
-              >
-                নিবন্ধন সম্পন্ন করুন
-              </button>
-              <button onClick={handleCloseForm} className="bg-gray-100 text-gray-800 py-3 px-6 rounded-lg w-full md:w-auto font-bold hover:bg-gray-200 transition-all text-lg">বাতিল</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {detailsModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[140] px-4 backdrop-blur-sm">
@@ -657,9 +873,9 @@ export default function BloodBankPage() {
             <div className="bg-green-50 p-5 rounded-xl text-center border border-green-200">
               <p className="text-green-700 font-bold mb-4 flex items-center justify-center gap-2"><span>✅</span> রক্ত দিতে প্রস্তুত</p>
               
-              {revealedPhone === detailsModal.id ? (
+              {revealedPhone ? (
                 <div className="flex flex-col items-center gap-4">
-                  <a href={`tel:${detailsModal.phone}`} className="text-2xl font-bold text-[#116cb4] tracking-widest bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 w-full">{detailsModal.phone}</a>
+                  <a href={`tel:${revealedPhone}`} className="text-2xl font-bold text-[#116cb4] tracking-widest bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 w-full">{revealedPhone}</a>
                   <button
                     onClick={() => {
                       setDetailsModal(null);
@@ -670,10 +886,86 @@ export default function BloodBankPage() {
                     আমি রক্ত দিয়েছি (আপডেট)
                   </button>
                 </div>
-              ) : (
-                <button onClick={() => setRevealedPhone(detailsModal.id)} className="bg-[#116cb4] text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 w-full transition-all shadow-md">
+              ) : !showTurnstile ? (
+                <button
+                  type="button"
+                  onClick={handlePhoneReveal}
+                  className="
+                    bg-[#116cb4]
+                    text-white
+                    px-6
+                    py-3
+                    rounded-lg
+                    font-bold
+                    hover:bg-blue-700
+                    w-full
+                    transition-all
+                    shadow-md
+                  "
+                >
                   মোবাইল নম্বর দেখুন
                 </button>
+              ) : (
+                <div className="bg-white rounded-xl border border-blue-100 p-4">
+                  <p className="text-sm font-bold text-gray-700 mb-3">
+                    নম্বর দেখতে আগে যাচাই করুন
+                  </p>
+
+                  <div className="flex justify-center">
+                    <Turnstile
+                      key={turnstileKey}
+                      siteKey={
+                        process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
+                      }
+                      onSuccess={handleTurnstileSuccess}
+                      onError={() => {
+                        setTurnstileLoading(false);
+
+                        showToast(
+                          "CAPTCHA verification ব্যর্থ হয়েছে। আবার চেষ্টা করুন।",
+                          "error"
+                        );
+                      }}
+                      onExpire={() => {
+                        setTurnstileLoading(false);
+
+                        showToast(
+                          "CAPTCHA-এর সময় শেষ হয়েছে। আবার যাচাই করুন।",
+                          "error"
+                        );
+                      }}
+                      options={{
+                        theme: "light",
+                        size: "normal",
+                      }}
+                    />
+                  </div>
+
+                  {turnstileLoading && (
+                    <p className="mt-3 text-xs text-blue-600 font-bold">
+                      যাচাই করা হচ্ছে...
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTurnstile(false);
+                      setTurnstileLoading(false);
+                      setTurnstileKey((prev) => prev + 1);
+                    }}
+                    className="
+                      mt-3
+                      text-xs
+                      font-bold
+                      text-gray-500
+                      hover:text-red-600
+                      transition-colors
+                    "
+                  >
+                    বাতিল
+                  </button>
+                </div>
               )}
             </div>
           </div>
