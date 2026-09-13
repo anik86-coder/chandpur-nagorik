@@ -16,6 +16,7 @@ const checkAvailability = (lastDonationDate: string) => {
 };
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
+const BUSINESS_VERIFIED_DONOR_ID = "95164";
 const toPublicDonor = (donorDoc: DocumentSnapshot) => {
   const data = donorDoc.data() || {};
 
@@ -30,6 +31,8 @@ const toPublicDonor = (donorDoc: DocumentSnapshot) => {
     allergy: data.allergy || "",
     email: data.email || "",
     lastDonation: data.lastDonation || "",
+    verified: data.verified === true,
+    verifiedAt: data.verifiedAt || "",
     createdAt: data.createdAt || "",
   };
 };
@@ -76,6 +79,8 @@ export default function BloodBankPage() {
   const [turnstileKey, setTurnstileKey] = useState(0);
 
   const [detailsModal, setDetailsModal] = useState<any | null>(null);
+  const [verificationDetails, setVerificationDetails] = useState<any | null>(null);
+  const [businessVerificationDetails, setBusinessVerificationDetails] = useState<any | null>(null);
   const [loginModal, setLoginModal] = useState({ isOpen: false, donorId: null as string | null });
   const [loginEmail, setLoginEmail] = useState("");
   const [loginOtp, setLoginOtp] = useState("");
@@ -691,7 +696,39 @@ export default function BloodBankPage() {
                         <div key={donor.id} className={`p-5 rounded-lg border ${isAvailable ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-gray-50 opacity-75'} hover:shadow-md transition-shadow`}>
                           <div className="flex justify-between items-center">
                             <div className="flex-1">
-                              <h4 className="font-bold text-xl text-gray-900">{donor.name}</h4>
+                              <h4 className="font-bold text-xl text-gray-900 flex items-center gap-1.5">
+                                <span>{donor.name}</span>
+
+                                {donor.id === BUSINESS_VERIFIED_DONOR_ID ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setBusinessVerificationDetails(donor)}
+                                    className="inline-flex items-center justify-center w-5 h-5 shrink-0 hover:scale-110 transition-transform"
+                                    title="Official Business Account — বিস্তারিত দেখতে ক্লিক করুন"
+                                    aria-label="Official Business Account"
+                                  >
+                                    <img
+                                      src="/golden-verify.png"
+                                      alt="Official Business Verified"
+                                      className="w-5 h-5 object-contain"
+                                    />
+                                  </button>
+                                ) : donor.verified === true ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setVerificationDetails(donor)}
+                                    className="inline-flex items-center justify-center w-5 h-5 shrink-0 hover:scale-110 transition-transform"
+                                    title="Verified donor — বিস্তারিত দেখতে ক্লিক করুন"
+                                    aria-label="Verified donor"
+                                  >
+                                    <img
+                                      src="/check1.png"
+                                      alt="Verified donor"
+                                      className="w-5 h-5 object-contain"
+                                    />
+                                  </button>
+                                ) : null}
+                              </h4>
 
                               {donor.address && (
                                 <div className="mt-1.5 mb-2">
@@ -967,6 +1004,73 @@ export default function BloodBankPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {businessVerificationDetails && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[165] px-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-xs text-center shadow-2xl overflow-hidden">
+            <div className="p-7">
+              <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
+                <img
+                  src="/golden-verify.png"
+                  alt="Business Verified"
+                  className="w-16 h-16 object-contain"
+                />
+              </div>
+
+              <h3 className="text-2xl font-extrabold text-gray-800">
+                Business Verified
+              </h3>
+            </div>
+
+            <div className="px-6 pb-6">
+              <button
+                type="button"
+                onClick={() => setBusinessVerificationDetails(null)}
+                className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-all shadow-md"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {verificationDetails && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[160] px-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm text-center shadow-2xl overflow-hidden animate-fade-in">
+            <div className="p-7">
+              <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
+                <img src="/check1.png" alt="Verified donor" className="w-16 h-16 object-contain" />
+              </div>
+              <h3 className="text-2xl font-extrabold text-gray-800">Verified Donor</h3>
+              <p className="text-lg font-bold text-gray-700 mt-2">
+                {verificationDetails.name || "এই ডোনার"}
+              </p>
+              <p className="text-sm text-blue-600 font-semibold mt-2">
+                চাঁদপুর নাগরিক কর্তৃক যাচাইকৃত
+              </p>
+              {verificationDetails.verifiedAt && (
+                <p className="text-xs text-gray-400 mt-2">
+                  Verified: {new Date(verificationDetails.verifiedAt).toLocaleDateString("bn-BD", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
+            <div className="px-6 pb-6">
+              <button
+                type="button"
+                onClick={() => setVerificationDetails(null)}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md"
+              >
+                বন্ধ করুন
+              </button>
             </div>
           </div>
         </div>
