@@ -50,6 +50,7 @@ export default function DonorRegistrationForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [successId, setSuccessId] = useState<string | null>(null);
+  const [showCancelWarning, setShowCancelWarning] = useState(false);
 
   const generateCaptcha = () => {
     setCaptchaA(Math.floor(Math.random() * 8) + 2);
@@ -424,16 +425,16 @@ export default function DonorRegistrationForm() {
     ) : null;
 
   return (
-    <div className="font-[Kalpurush]">
+    <div className="font-[Kalpurush] w-full max-w-full min-w-0 overflow-x-hidden">
 
       {/* Form Box */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-lg mb-8 max-w-2xl mx-auto">
+      <div className="bg-white w-full max-w-2xl min-w-0 box-border p-4 sm:p-6 md:p-8 rounded-2xl border border-gray-100 shadow-lg mb-8 mx-auto overflow-hidden">
 
         <h2 className="text-2xl font-bold text-gray-800 mb-8 border-b-2 border-red-100 pb-3 text-center">
           রক্তদাতা নিবন্ধন ফর্ম
         </h2>
 
-        <div className="grid gap-6">
+        <div className="grid gap-6 w-full max-w-full min-w-0">
 
           {/* Name */}
           <div id="name">
@@ -451,7 +452,7 @@ export default function DonorRegistrationForm() {
                   e.target.value
                 )
               }
-              className={`w-full border-b-2 ${
+              className={`block w-full max-w-full min-w-0 box-border border-b-2 ${
                 errors.name
                   ? "border-red-500"
                   : "border-gray-200"
@@ -462,7 +463,7 @@ export default function DonorRegistrationForm() {
           </div>
 
           {/* Blood Group + Phone */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 w-full max-w-full min-w-0">
 
             <div>
               <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">
@@ -477,7 +478,7 @@ export default function DonorRegistrationForm() {
                     e.target.value
                   )
                 }
-                className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg cursor-pointer"
+                className="block w-full max-w-full min-w-0 box-border border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg cursor-pointer"
               >
                 {bloodGroups.map((bg) => (
                   <option
@@ -501,7 +502,7 @@ export default function DonorRegistrationForm() {
                 onChange={handlePhoneChange}
                 maxLength={14}
                 placeholder="+8801XXXXXXXXX"
-                className={`w-full border-b-2 ${
+                className={`block w-full max-w-full min-w-0 box-border border-b-2 ${
                   errors.phone
                     ? "border-red-500"
                     : "border-gray-200"
@@ -514,7 +515,7 @@ export default function DonorRegistrationForm() {
           </div>
 
           {/* DOB + Address */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 w-full max-w-full min-w-0">
 
             <div id="dob">
               <label className="text-xs text-gray-500 font-bold uppercase tracking-wider">
@@ -525,7 +526,7 @@ export default function DonorRegistrationForm() {
                 type="date"
                 value={formData.dob}
                 onChange={handleDobChange}
-                className={`w-full border-b-2 ${
+                className={`block w-full max-w-full min-w-0 box-border border-b-2 ${
                   errors.dob
                     ? "border-red-500"
                     : "border-gray-200"
@@ -550,7 +551,7 @@ export default function DonorRegistrationForm() {
                     e.target.value
                   )
                 }
-                className={`w-full border-b-2 ${
+                className={`block w-full max-w-full min-w-0 box-border border-b-2 ${
                   errors.address
                     ? "border-red-500"
                     : "border-gray-200"
@@ -585,7 +586,7 @@ export default function DonorRegistrationForm() {
                   allergy: "",
                 })
               }
-              className="w-full border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg"
+              className="block w-full max-w-full min-w-0 box-border border-b-2 border-gray-200 py-2 outline-none focus:border-red-600 transition-colors bg-transparent text-gray-800 text-lg"
             />
           </div>
 
@@ -612,7 +613,7 @@ export default function DonorRegistrationForm() {
                   e.target.value
                 )
               }
-              className={`w-full border-b-2 ${
+              className={`block w-full max-w-full min-w-0 box-border border-b-2 ${
                 errors.email
                   ? "border-red-500"
                   : "border-red-200"
@@ -628,7 +629,7 @@ export default function DonorRegistrationForm() {
             className="border-t border-gray-200 pt-5 mt-1 space-y-3"
           >
 
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-start gap-3 w-full max-w-full min-w-0 cursor-pointer">
               <input
                 type="checkbox"
                 checked={voluntaryConsent}
@@ -645,13 +646,13 @@ export default function DonorRegistrationForm() {
                 className="mt-1 w-4 h-4 accent-red-600 cursor-pointer flex-shrink-0"
               />
 
-              <span className="text-sm text-gray-600 leading-6">
+              <span className="min-w-0 flex-1 max-w-full text-sm text-gray-600 leading-6 break-words overflow-wrap-anywhere">
                 আমি স্বেচ্ছায় রক্তদাতা হিসেবে নিবন্ধন করছি এবং
                 প্রয়োজনের সময়ে রক্তদানে সম্মত আছি।
               </span>
             </label>
 
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-start gap-3 w-full max-w-full min-w-0 cursor-pointer">
               <input
                 type="checkbox"
                 checked={termsConsent}
@@ -668,7 +669,7 @@ export default function DonorRegistrationForm() {
                 className="mt-1 w-4 h-4 accent-red-600 cursor-pointer flex-shrink-0"
               />
 
-              <span className="text-sm text-gray-600 leading-6">
+              <span className="min-w-0 flex-1 max-w-full text-sm text-gray-600 leading-6 break-words overflow-wrap-anywhere">
                 আমি{" "}
                 <a
                   href="/sheba/blood-bank/terms"
@@ -691,7 +692,7 @@ export default function DonorRegistrationForm() {
             className="bg-gray-50 border border-gray-200 rounded-xl p-4"
           >
 
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between gap-2 w-full min-w-0 mb-3">
               <label className="text-xs text-gray-600 font-bold uppercase tracking-wider">
                 নিরাপত্তা যাচাই *
               </label>
@@ -699,15 +700,15 @@ export default function DonorRegistrationForm() {
               <button
                 type="button"
                 onClick={generateCaptcha}
-                className="text-xs text-red-600 font-bold hover:underline"
+                className="shrink-0 text-xs text-red-600 font-bold hover:underline mr-1 whitespace-nowrap"
               >
                 নতুন ক্যাপচা
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 w-full max-w-full min-w-0">
 
-              <div className="bg-white border border-gray-200 rounded-lg px-4 py-2 font-bold text-lg text-gray-800 whitespace-nowrap">
+              <div className="shrink-0 max-w-full bg-white border border-gray-200 rounded-lg px-4 py-2 font-bold text-lg text-gray-800 whitespace-nowrap">
                 {captchaA} + {captchaB} = ?
               </div>
 
@@ -728,7 +729,7 @@ export default function DonorRegistrationForm() {
                   }));
                 }}
                 placeholder="উত্তর"
-                className="flex-1 min-w-0 border-b-2 border-gray-300 py-2 px-2 outline-none focus:border-red-600 bg-transparent text-gray-800 text-lg"
+                className="flex-1 min-w-[0] max-w-full border-b-2 border-gray-300 py-2 px-2 outline-none focus:border-red-600 bg-transparent text-gray-800 text-lg"
               />
 
             </div>
@@ -763,9 +764,8 @@ export default function DonorRegistrationForm() {
             </button>
 
             <button
-              onClick={() =>
-                router.push("/sheba/blood-bank")
-              }
+              type="button"
+              onClick={() => setShowCancelWarning(true)}
               className="bg-gray-100 text-gray-800 py-3 px-6 rounded-lg w-full md:w-auto font-bold hover:bg-gray-200 transition-all text-lg"
             >
               বাতিল
@@ -775,6 +775,49 @@ export default function DonorRegistrationForm() {
 
         </div>
       </div>
+
+      {/* ================= CANCEL WARNING ================= */}
+      {showCancelWarning && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center px-4">
+          {/* No blur — only a simple dark overlay */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowCancelWarning(false)}
+          />
+
+          <div className="relative z-10 w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 text-center">
+            <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-2xl">
+              ⚠️
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              আপনি কি বাতিল করতে চান?
+            </h3>
+
+            <p className="text-sm text-gray-600 mb-6">
+              বাতিল করলে আপনার পূরণ করা তথ্যগুলো সংরক্ষণ করা হবে না।
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCancelWarning(false)}
+                className="flex-1 bg-gray-100 text-gray-800 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all"
+              >
+                না, থাক
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/sheba/blood-bank")}
+                className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition-all"
+              >
+                হ্যাঁ, বাতিল
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -22,11 +22,13 @@
   --foreground: #171717;
 }
 
-/* Tailwind theme */
+/* Tailwind theme (Tailwind CSS v4) */
+/* stylelint-disable at-rule-no-unknown */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 }
+/* stylelint-enable at-rule-no-unknown */
 
 /* Global body style */
 body {

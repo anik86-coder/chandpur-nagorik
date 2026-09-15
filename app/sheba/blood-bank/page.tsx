@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { db } from "../../../firebase"; 
-import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer, updateDoc, doc, documentId, type DocumentSnapshot } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer, doc, type DocumentSnapshot } from "firebase/firestore";
 
 const checkAvailability = (lastDonationDate: string) => {
   if (!lastDonationDate) return true;
@@ -66,6 +67,7 @@ const sortDonorsByAvailability = (donorList: any[]) => {
 const DONORS_PER_PAGE = 25;
 
 export default function BloodBankPage() {
+  const router = useRouter();
   const [donors, setDonors] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -79,8 +81,9 @@ export default function BloodBankPage() {
   const [turnstileKey, setTurnstileKey] = useState(0);
 
   const [detailsModal, setDetailsModal] = useState<any | null>(null);
-  const [verificationDetails, setVerificationDetails] = useState<any | null>(null);
-  const [businessVerificationDetails, setBusinessVerificationDetails] = useState<any | null>(null);
+  const [hoveredVerificationId, setHoveredVerificationId] = useState<string | null>(null);
+  const [clickedVerificationId, setClickedVerificationId] = useState<string | null>(null);
+  const verificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loginModal, setLoginModal] = useState({ isOpen: false, donorId: null as string | null });
   const [loginEmail, setLoginEmail] = useState("");
   const [loginOtp, setLoginOtp] = useState("");
@@ -102,9 +105,27 @@ export default function BloodBankPage() {
   const [maxVisitedPage, setMaxVisitedPage] = useState(1);
   // নির্বাচিত গ্রুপের পুরো sorted list — pagination এই list থেকেই হবে।
   const [allGroupDonors, setAllGroupDonors] = useState<any[]>([]);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
 
   const currentDonors = donors;
+
+  // নিচে স্ক্রল করলে "উপরে যান" বাটন দেখাবে
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 350);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
 
   const handlePageChange = async (pageNumber: number) => {
     if (!selectedGroup || pageNumber < 1 || isPageLoading) return;
@@ -141,6 +162,62 @@ export default function BloodBankPage() {
       }
     }
   };
+
+  // Verification tooltip: phone tap/click should disappear quickly,
+  // and any outside interaction (tap, click, scroll, wheel, touch move, key) closes it.
+  const showVerificationPopup = (id: string) => {
+    if (verificationTimerRef.current) {
+      clearTimeout(verificationTimerRef.current);
+    }
+
+    setClickedVerificationId(id);
+
+    verificationTimerRef.current = setTimeout(() => {
+      setClickedVerificationId((prev) => (prev === id ? null : prev));
+      verificationTimerRef.current = null;
+    }, 700);
+  };
+
+  const closeVerificationPopup = () => {
+    if (verificationTimerRef.current) {
+      clearTimeout(verificationTimerRef.current);
+      verificationTimerRef.current = null;
+    }
+
+    setClickedVerificationId(null);
+  };
+
+  useEffect(() => {
+    if (!clickedVerificationId) return;
+
+    const handleOutsideInteraction = () => {
+      closeVerificationPopup();
+    };
+
+    document.addEventListener("pointerdown", handleOutsideInteraction, true);
+    document.addEventListener("touchstart", handleOutsideInteraction, true);
+    document.addEventListener("keydown", handleOutsideInteraction, true);
+    window.addEventListener("scroll", handleOutsideInteraction, true);
+    window.addEventListener("wheel", handleOutsideInteraction, true);
+    window.addEventListener("touchmove", handleOutsideInteraction, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideInteraction, true);
+      document.removeEventListener("touchstart", handleOutsideInteraction, true);
+      document.removeEventListener("keydown", handleOutsideInteraction, true);
+      window.removeEventListener("scroll", handleOutsideInteraction, true);
+      window.removeEventListener("wheel", handleOutsideInteraction, true);
+      window.removeEventListener("touchmove", handleOutsideInteraction, true);
+    };
+  }, [clickedVerificationId]);
+
+  useEffect(() => {
+    return () => {
+      if (verificationTimerRef.current) {
+        clearTimeout(verificationTimerRef.current);
+      }
+    };
+  }, []);
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ show: true, message, type });
@@ -284,27 +361,8 @@ export default function BloodBankPage() {
     try {
       const results: any[] = [];
 
-      // Exact Donor ID search — restricted to the selected blood group.
-      const idSnapshot = await getDocs(
-        query(
-          collection(db, "donors"),
-          where(documentId(), "==", term)
-        )
-      );
-
-      if (requestId !== requestIdRef.current) return;
-
-      idSnapshot.forEach(d => {
-        const data = d.data();
-
-        // IMPORTANT: a donor from another blood group will never appear.
-        if (data.group === selectedGroup) {
-          results.push(toPublicDonor(d));
-        }
-      });
-
-      // Name search — only inside the currently selected blood group.
-      const nameSnapshot = await getDocs(
+      // ID + name partial search within selected blood group.
+      const searchSnapshot = await getDocs(
         query(
           collection(db, "donors"),
           where("group", "==", selectedGroup),
@@ -314,12 +372,13 @@ export default function BloodBankPage() {
 
       if (requestId !== requestIdRef.current) return;
 
-      nameSnapshot.forEach(d => {
+      searchSnapshot.forEach(d => {
         const data = d.data();
+        const donorId = String(d.id || "").toLowerCase();
         const name = String(data.name || "").toLowerCase();
 
         if (
-          name.includes(term) &&
+          (donorId.includes(term) || name.includes(term)) &&
           !results.some(result => result.id === d.id)
         ) {
           results.push(toPublicDonor(d));
@@ -477,57 +536,62 @@ export default function BloodBankPage() {
     setIsProcessing(true);
 
     try {
-      const res = await fetch('/api/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const donorId = loginModal.donorId;
+
+      // OTP verification + donor status update are now handled server-side
+      // using Firebase Admin SDK. This avoids Firestore client permission errors.
+      const res = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: loginEmail.trim().toLowerCase(),
           otp: loginOtp,
-        })
+          donorId,
+        }),
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
+      if (!res.ok || !data.success) {
         showToast(
-          data.message || "ভুল OTP দেওয়া হয়েছে বা মেয়াদ শেষ।",
+          data.message || "ভুল OTP দেওয়া হয়েছে বা স্ট্যাটাস আপডেট করা যায়নি।",
           "error"
         );
         return;
       }
 
-      const todayStr = new Date().toISOString().split('T')[0];
-      const donorId = loginModal.donorId;
-      const donorRef = doc(db, "donors", donorId);
+      const todayStr =
+        data.lastDonation || new Date().toISOString().split("T")[0];
 
-      // Firestore-এ donation date update
-      await updateDoc(donorRef, {
-        lastDonation: todayStr,
-      });
-
-      // Global donor list-এও একই update করা হচ্ছে।
-      // এখন donorটি unavailable হয়ে donated section-এর একদম শেষে যাবে,
-      // আর অন্য page-গুলোতেও একই serial বজায় থাকবে।
-      setAllGroupDonors(prev => {
-        const target = prev.find(d => d.id === donorId);
+      // Server-side Admin SDK already updated Firestore.
+      // এখানে শুধু UI-এর local donor list update করা হচ্ছে।
+      setAllGroupDonors((prev) => {
+        const target = prev.find((d) => d.id === donorId);
         if (!target) return prev;
 
-        const others = prev.filter(d => d.id !== donorId);
+        const others = prev.filter((d) => d.id !== donorId);
         const updatedDonor = { ...target, lastDonation: todayStr };
+
         return sortDonorsByAvailability([...others, updatedDonor]);
       });
 
-      setDonors(prev => {
-        const target = prev.find(d => d.id === donorId);
+      setDonors((prev) => {
+        const target = prev.find((d) => d.id === donorId);
         if (!target) return prev;
 
-        // Current page-এর local preview-ও global list অনুযায়ী rebuild হবে।
         const updatedDonor = { ...target, lastDonation: todayStr };
         const updatedAll = sortDonorsByAvailability(
-          allGroupDonors.map(d => d.id === donorId ? updatedDonor : d)
+          allGroupDonors.map((d) =>
+            d.id === donorId ? updatedDonor : d
+          )
         );
+
         const startIndex = (currentPage - 1) * DONORS_PER_PAGE;
-        return updatedAll.slice(startIndex, startIndex + DONORS_PER_PAGE);
+
+        return updatedAll.slice(
+          startIndex,
+          startIndex + DONORS_PER_PAGE
+        );
       });
 
       closeModal();
@@ -537,8 +601,9 @@ export default function BloodBankPage() {
       );
     } catch (error) {
       console.error("Error verifying/updating donor:", error);
+
       showToast(
-        "স্ট্যাটাস আপডেট করতে সমস্যা হচ্ছে। আবার চেষ্টা করুন।",
+        "স্ট্যাটাস আপডেট করতে সমস্যা হচ্ছে। একটু পর আবার চেষ্টা করুন।",
         "error"
       );
     } finally {
@@ -560,19 +625,49 @@ export default function BloodBankPage() {
 
   return (
     <main className="max-w-screen-md mx-auto px-4 py-5 font-[Kalpurush] min-h-screen relative">
-      
+
+      {/* PC: Blood Bank center + Back button left side | Phone: Back button above left */}
+      <div className="relative mt-1 mb-5">
+        {/* Phone — Blood Bank-এর ঠিক উপরে বাম পাশে */}
+        <div className="sm:hidden mb-2 flex justify-start">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="inline-flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3.5 py-2 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50 active:scale-[0.98] transition-all touch-manipulation"
+            aria-label="পেছনে যান"
+          >
+            <span className="text-lg leading-none">←</span>
+            <span>পেছনে যান</span>
+          </button>
+        </div>
+
+        {/* PC — আগের মতো Blood Bank center, Back button বাম পাশে */}
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="hidden sm:inline-flex absolute left-0 top-0 z-10 items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all touch-manipulation"
+          aria-label="পেছনে যান"
+        >
+          <span className="text-lg leading-none">←</span>
+          <span>পেছনে যান</span>
+        </button>
+
+        <div className="text-center pt-1">
+          <h1 className="text-3xl md:text-4xl font-bold text-red-600 mb-3 flex items-center justify-center gap-2">
+            <span>🩸</span> ব্লাড ব্যাংক
+          </h1>
+          <p className="text-gray-600 text-[17px]">
+            জরুরি মুহূর্তে রক্তের সন্ধানে আমরা আছি আপনার পাশে।
+          </p>
+        </div>
+      </div>
+
       {toast.show && (
         <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-lg shadow-lg text-white font-bold transition-all duration-300 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
           {toast.message}
         </div>
       )}
 
-      <div className="text-center mt-3 mb-6 pb-3">
-        <h1 className="text-3xl md:text-4xl font-bold text-red-600 mb-3 flex items-center justify-center gap-2">
-          <span>🩸</span> ব্লাড ব্যাংক
-        </h1>
-        <p className="text-gray-600 text-[17px]">জরুরি মুহূর্তে রক্তের সন্ধানে আমরা আছি আপনার পাশে।</p>
-      </div>
 
       <>
 
@@ -613,11 +708,11 @@ export default function BloodBankPage() {
               <div className="mb-4">
                 <div className="rounded-2xl border border-red-100 bg-gradient-to-br from-red-50 via-white to-gray-50 p-3 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 text-lg">
+                    <span className="flex h-10 w-10 max-sm:h-9 max-sm:w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 text-lg">
                       🔎
                     </span>
 
-                    <div className="relative flex-1">
+                    <div className="relative flex-1 min-w-0">
                       <input
                         ref={searchInputRef}
                         type="text"
@@ -637,8 +732,8 @@ export default function BloodBankPage() {
                             handleSearch();
                           }
                         }}
-                        placeholder="ডোনারের নাম বা 8-digit Donor ID..."
-                        className="w-full h-12 border border-gray-200 bg-white rounded-xl px-10 outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100 text-gray-800 text-base text-center shadow-sm transition-all"
+                        placeholder="ডোনারের নাম / ID লিখুন..."
+                        className="w-full h-12 max-sm:h-11 border border-gray-200 bg-white rounded-xl px-4 max-sm:px-3 outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100 text-gray-800 text-base max-sm:text-[13px] text-left shadow-sm transition-all min-w-0"
                         aria-label={`${selectedGroup} গ্রুপে ডোনার খুঁজুন`}
                       />
                     </div>
@@ -647,7 +742,7 @@ export default function BloodBankPage() {
                       <button
                         type="button"
                         onClick={handleClearSearch}
-                        className="shrink-0 h-14 w-16 flex items-center justify-center rounded-xl bg-gray-100 border-2 border-gray-300 text-gray-600 text-4xl font-bold leading-none hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all shadow-md"
+                        className="shrink-0 h-11 w-11 max-sm:h-10 max-sm:w-10 flex items-center justify-center rounded-xl bg-gray-100 border-2 border-gray-300 text-gray-600 text-2xl max-sm:text-xl font-bold leading-none hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all shadow-sm touch-manipulation"
                         aria-label="সার্চ মুছুন"
                         title="সার্চ মুছুন"
                       >
@@ -659,7 +754,7 @@ export default function BloodBankPage() {
                       type="button"
                       onClick={handleSearch}
                       disabled={isPageLoading || !searchTerm.trim()}
-                      className="shrink-0 h-12 min-w-[120px] px-7 rounded-xl bg-red-600 text-white font-bold text-base hover:bg-red-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all"
+                      className="shrink-0 h-12 max-sm:h-11 min-w-[120px] max-sm:min-w-[72px] px-7 max-sm:px-3 rounded-xl bg-red-600 text-white font-bold text-base max-sm:text-sm hover:bg-red-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all touch-manipulation whitespace-nowrap"
                     >
                       {isPageLoading ? "খোঁজা হচ্ছে..." : "খুঁজুন"}
                     </button>
@@ -700,33 +795,92 @@ export default function BloodBankPage() {
                                 <span>{donor.name}</span>
 
                                 {donor.id === BUSINESS_VERIFIED_DONOR_ID ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => setBusinessVerificationDetails(donor)}
-                                    className="inline-flex items-center justify-center w-5 h-5 shrink-0 hover:scale-110 transition-transform"
-                                    title="Official Business Account — বিস্তারিত দেখতে ক্লিক করুন"
-                                    aria-label="Official Business Account"
+                                  <span
+                                    className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
+                                    onMouseEnter={() => setHoveredVerificationId(`business-${donor.id}`)}
+                                    onMouseLeave={() => {
+                                      setHoveredVerificationId(null);
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      showVerificationPopup(`business-${donor.id}`);
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                    onBlur={() => closeVerificationPopup()}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        showVerificationPopup(`business-${donor.id}`);
+                                      }
+                                    }}
+                                    aria-label="Business Verified"
                                   >
                                     <img
                                       src="/golden-verify.png"
-                                      alt="Official Business Verified"
-                                      className="w-5 h-5 object-contain"
+                                      alt="Business Verified"
+                                      className="w-5 h-5 object-contain pointer-events-none select-none"
                                     />
-                                  </button>
+
+                                    {
+                                      (hoveredVerificationId === `business-${donor.id}` ||
+                                        clickedVerificationId === `business-${donor.id}`) && (
+                                      <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-[180] w-max min-w-[180px] rounded-xl bg-gray-900/95 px-4 py-2.5 text-center shadow-lg border border-white/10 pointer-events-none transition-opacity duration-100">
+                                        <span className="block text-sm leading-5 font-bold text-white">
+                                          Business Verified
+                                        </span>
+                                      </span>
+                                    )}
+                                  </span>
                                 ) : donor.verified === true ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => setVerificationDetails(donor)}
-                                    className="inline-flex items-center justify-center w-5 h-5 shrink-0 hover:scale-110 transition-transform"
-                                    title="Verified donor — বিস্তারিত দেখতে ক্লিক করুন"
-                                    aria-label="Verified donor"
+                                  <span
+                                    className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
+                                    onMouseEnter={() => setHoveredVerificationId(`verified-${donor.id}`)}
+                                    onMouseLeave={() => {
+                                      setHoveredVerificationId(null);
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      showVerificationPopup(`verified-${donor.id}`);
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                    onBlur={() => closeVerificationPopup()}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        showVerificationPopup(`verified-${donor.id}`);
+                                      }
+                                    }}
+                                    aria-label="Verified Donor"
                                   >
                                     <img
                                       src="/check1.png"
                                       alt="Verified donor"
-                                      className="w-5 h-5 object-contain"
+                                      className="w-5 h-5 object-contain pointer-events-none select-none"
                                     />
-                                  </button>
+
+                                    {
+                                      (hoveredVerificationId === `verified-${donor.id}` ||
+                                        clickedVerificationId === `verified-${donor.id}`) && (
+                                      <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-[180] w-max min-w-[195px] rounded-xl bg-gray-900/95 px-4 py-2.5 text-center shadow-lg border border-white/10 pointer-events-none transition-opacity duration-100">
+                                        <span className="block text-sm leading-5 font-bold text-white">
+                                          Verified Donor
+                                        </span>
+                                        <span className="block mt-0.5 text-xs leading-5 font-semibold text-gray-300">
+                                          Since {donor.verifiedAt
+                                            ? new Date(donor.verifiedAt).toLocaleDateString("en-GB", {
+                                                day: "numeric",
+                                                month: "long",
+                                                year: "numeric",
+                                              })
+                                            : "—"}
+                                        </span>
+                                      </span>
+                                    )}
+                                  </span>
                                 ) : null}
                               </h4>
 
@@ -1009,71 +1163,16 @@ export default function BloodBankPage() {
         </div>
       )}
 
-      {businessVerificationDetails && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[165] px-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-xs text-center shadow-2xl overflow-hidden">
-            <div className="p-7">
-              <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
-                <img
-                  src="/golden-verify.png"
-                  alt="Business Verified"
-                  className="w-16 h-16 object-contain"
-                />
-              </div>
-
-              <h3 className="text-2xl font-extrabold text-gray-800">
-                Business Verified
-              </h3>
-            </div>
-
-            <div className="px-6 pb-6">
-              <button
-                type="button"
-                onClick={() => setBusinessVerificationDetails(null)}
-                className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-all shadow-md"
-              >
-                বন্ধ করুন
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {verificationDetails && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[160] px-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-sm text-center shadow-2xl overflow-hidden animate-fade-in">
-            <div className="p-7">
-              <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
-                <img src="/check1.png" alt="Verified donor" className="w-16 h-16 object-contain" />
-              </div>
-              <h3 className="text-2xl font-extrabold text-gray-800">Verified Donor</h3>
-              <p className="text-lg font-bold text-gray-700 mt-2">
-                {verificationDetails.name || "এই ডোনার"}
-              </p>
-              <p className="text-sm text-blue-600 font-semibold mt-2">
-                চাঁদপুর নাগরিক কর্তৃক যাচাইকৃত
-              </p>
-              {verificationDetails.verifiedAt && (
-                <p className="text-xs text-gray-400 mt-2">
-                  Verified: {new Date(verificationDetails.verifiedAt).toLocaleDateString("bn-BD", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </p>
-              )}
-            </div>
-            <div className="px-6 pb-6">
-              <button
-                type="button"
-                onClick={() => setVerificationDetails(null)}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md"
-              >
-                বন্ধ করুন
-              </button>
-            </div>
-          </div>
-        </div>
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-5 right-5 z-[120] w-12 h-12 rounded-full bg-red-500/55 text-red-700 border border-red-200/60 backdrop-blur-md shadow-[0_8px_30px_rgba(239,68,68,0.22)] flex items-center justify-center text-xl font-bold hover:bg-red-500/70 hover:scale-105 active:scale-90 transition-all duration-200"
+          aria-label="উপরে যান"
+          title="উপরে যান"
+        >
+          ↑
+        </button>
       )}
 
       {loginModal.isOpen && (
