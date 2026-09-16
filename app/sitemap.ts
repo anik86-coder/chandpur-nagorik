@@ -3,57 +3,74 @@ import type { MetadataRoute } from "next";
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://chandpurnagorik.com";
 
-  const routes = [
+  return [
     {
-      path: "",
-      priority: 1.0,
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 1,
     },
+
+    // নাগরিক সেবা
     {
-      path: "/sheba",
-      priority: 1.0,
-    },
-    {
-      path: "/sheba/blood-bank",
-      priority: 1.0,
-    },
-    {
-      path: "/sheba/emergency",
+      url: `${baseUrl}/sheba`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
       priority: 0.9,
     },
+
+    // Blood Bank
     {
-      path: "/sheba/zilla-info",
-      priority: 0.9,
+      url: `${baseUrl}/sheba/blood-bank`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.95,
     },
     {
-      path: "/donation",
-      priority: 0.9,
-    },
-    {
-      path: "/about",
+      url: `${baseUrl}/sheba/blood-bank/register`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
       priority: 0.7,
     },
+
+    // Health
     {
-      path: "/contact",
-      priority: 0.7,
+      url: `${baseUrl}/sheba/health`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
     },
+
+    // Hospitals
     {
-      path: "/opinion",
-      priority: 0.6,
+      url: `${baseUrl}/sheba/health/hospitals`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
     },
+
+    // Doctors
     {
-      path: "/privacy",
-      priority: 0.5,
+      url: `${baseUrl}/sheba/health/doctors`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
     },
+
+    // Diagnostic
     {
-      path: "/terms",
-      priority: 0.5,
+      url: `${baseUrl}/sheba/health/diagnostic`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.85,
+    },
+
+    // Ambulance
+    {
+      url: `${baseUrl}/sheba/health/ambulance`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
     },
   ];
-
-  return routes.map(({ path, priority }) => ({
-    url: `${baseUrl}${path}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly",
-    priority,
-  }));
 }

@@ -87,8 +87,10 @@ export default function BloodBankPage() {
   const [loginModal, setLoginModal] = useState({ isOpen: false, donorId: null as string | null });
   const [loginEmail, setLoginEmail] = useState("");
   const [loginOtp, setLoginOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false); 
-  const [isProcessing, setIsProcessing] = useState(false); 
+  const [otpSent, setOtpSent] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [showCancelWarning, setShowCancelWarning] = useState(false); 
   
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
@@ -485,41 +487,93 @@ export default function BloodBankPage() {
     }
   };
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  const formatCooldown = (seconds: number) =>
+    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+
   const handleSendOtp = async () => {
+    if (resendCooldown > 0) {
+      showToast(
+        `আবার OTP পাঠাতে ${formatCooldown(resendCooldown)} অপেক্ষা করুন।`,
+        "error"
+      );
+      return;
+    }
+
     if (!loginEmail) {
       showToast("অনুগ্রহ করে আপনার ইমেইল এড্রেস দিন।", "error");
       return;
     }
 
     const trimmedLoginEmail = loginEmail.trim().toLowerCase();
-    const targetDonor = donors.find(d => d.id === loginModal.donorId);
-    
-    if (targetDonor && targetDonor.email?.trim().toLowerCase() !== trimmedLoginEmail) {
-      showToast("এটি এই ডোনারের নিবন্ধিত ইমেইল নয়! সঠিক ইমেইলটি দিন।", "error");
+    const donorId = String(loginModal.donorId || "").trim();
+
+    if (!donorId) {
+      showToast("ডোনারের তথ্য পাওয়া যায়নি। আবার চেষ্টা করুন।", "error");
+      return;
+    }
+
+    const targetDonor = donors.find((d) => d.id === donorId);
+
+    if (
+      targetDonor &&
+      targetDonor.email?.trim().toLowerCase() !== trimmedLoginEmail
+    ) {
+      showToast(
+        "এটি এই ডোনারের নিবন্ধিত ইমেইল নয়! সঠিক ইমেইলটি দিন।",
+        "error"
+      );
       return;
     }
 
     setIsProcessing(true);
+
     try {
-      const res = await fetch('/api/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmedLoginEmail }) 
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmedLoginEmail,
+          donorId,
+        }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
         setOtpSent(true);
+        setLoginOtp("");
+        setResendCooldown(120);
         showToast("আপনার ইমেইলে একটি ৬-ডিজিটের OTP পাঠানো হয়েছে!");
       } else {
-        showToast(data.message || "OTP পাঠাতে সমস্যা হয়েছে。", "error");
+        showToast(data.message || "OTP পাঠাতে সমস্যা হয়েছে।", "error");
+
+        if (
+          typeof data.retryAfterSeconds === "number" &&
+          data.retryAfterSeconds > 0
+        ) {
+          setOtpSent(true);
+          setResendCooldown(data.retryAfterSeconds);
+        }
       }
     } catch (error) {
       console.error("Error sending OTP:", error);
-      showToast("সার্ভারে সমস্যা হচ্ছে। একটু পর আবার চেষ্টা করুন。", "error");
+      showToast(
+        "সার্ভারে সমস্যা হচ্ছে। একটু পর আবার চেষ্টা করুন।",
+        "error"
+      );
+    } finally {
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
   const handleVerifyAndUpdate = async () => {
@@ -612,10 +666,12 @@ export default function BloodBankPage() {
   };
 
   const closeModal = () => {
+    setShowCancelWarning(false);
     setLoginModal({ isOpen: false, donorId: null });
     setLoginEmail("");
     setLoginOtp("");
     setOtpSent(false);
+    setResendCooldown(0);
 
     setShowTurnstile(false);
     setTurnstileLoading(false);
@@ -1201,21 +1257,99 @@ export default function BloodBankPage() {
               <>
                 <p className="text-sm text-green-600 mb-6 font-semibold bg-green-50 p-2 rounded-lg">আপনার ইমেইলে একটি ৬-ডিজিটের কোড পাঠানো হয়েছে।</p>
                 <input 
-                  type="text" 
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   placeholder="------" 
-                  className="border-b-2 border-green-400 py-2 w-full mb-6 outline-none focus:border-green-600 text-center text-3xl tracking-[0.5em] font-bold bg-transparent transition-colors"
+                  className="border-b-2 border-green-400 py-2 w-full mb-3 outline-none focus:border-green-600 text-center text-3xl tracking-[0.5em] font-bold bg-transparent transition-colors"
                   value={loginOtp}
-                  onChange={e => setLoginOtp(e.target.value)}
+                  onChange={e => setLoginOtp(e.target.value.replace(/\\D/g, "").slice(0, 6))}
                   maxLength={6}
                 />
+
+                <div className="mb-5">
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={isProcessing || resendCooldown > 0}
+                    className={`w-full h-11 rounded-xl border font-bold text-sm transition-all shadow-sm flex items-center justify-center gap-2 ${
+                      resendCooldown > 0
+                        ? "bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed"
+                        : "bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 active:scale-[0.99]"
+                    }`}
+                  >
+                    <span>↻</span>
+                    <span>
+                      {isProcessing
+                        ? "পাঠানো হচ্ছে..."
+                        : resendCooldown > 0
+                          ? `আবার OTP পাঠান (${formatCooldown(resendCooldown)})`
+                          : "আবার OTP পাঠান"}
+                    </span>
+                  </button>
+                </div>
+
                 <div className="flex gap-3">
                   <button onClick={handleVerifyAndUpdate} disabled={isProcessing} className="bg-green-600 text-white py-3 w-full rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 transition-all shadow-md">
                     {isProcessing ? 'ভেরিফাই হচ্ছে...' : 'আপডেট করুন'}
                   </button>
-                  <button onClick={closeModal} className="bg-gray-100 text-gray-800 py-3 px-6 rounded-xl font-bold hover:bg-gray-200 transition-all">বাতিল</button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelWarning(true)}
+                    className="bg-gray-100 text-gray-800 py-3 px-6 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                  >
+                    বাতিল
+                  </button>
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Custom OTP cancel warning modal */}
+      {showCancelWarning && loginModal.isOpen && otpSent && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-warning-title"
+          >
+            <div className="px-6 pt-6 pb-4 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 border border-amber-100 text-3xl">
+                ⚠️
+              </div>
+
+              <h4 id="cancel-warning-title" className="text-xl font-bold text-gray-800">
+                OTP ইতোমধ্যে পাঠানো হয়েছে
+              </h4>
+
+              <p className="mt-3 text-sm leading-6 text-gray-600">
+                আপনি কি এই প্রক্রিয়াটি বাতিল করতে চান?
+                <br />
+                OTP এখনো কার্যকর থাকবে।
+              </p>
+
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 px-6 pb-6">
+              <button
+                type="button"
+                onClick={() => setShowCancelWarning(false)}
+                className="h-11 rounded-xl bg-gray-100 text-gray-800 font-bold text-sm border border-gray-200 hover:bg-gray-200 active:scale-[0.98] transition-all"
+              >
+                থাকুন
+              </button>
+
+              <button
+                type="button"
+                onClick={closeModal}
+                className="h-11 rounded-xl bg-red-600 text-white font-bold text-sm shadow-md hover:bg-red-700 active:scale-[0.98] transition-all"
+              >
+                বাতিল করুন
+              </button>
+            </div>
           </div>
         </div>
       )}

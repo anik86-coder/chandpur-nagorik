@@ -32,7 +32,7 @@ export default function DonorRegistrationForm() {
   const [formData, setFormData] = useState({
     name: "",
     group: "A+",
-    phone: "+8801",
+    phone: "+880",
     dob: "",
     address: "",
     disease: "",

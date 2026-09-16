@@ -22,10 +22,7 @@ export default function ContactPage() {
 
               <p className="text-gray-700 leading-relaxed">
                 চাঁদপুর নাগরিক
-                <br />
-                হাসান আলী সরকারি উচ্চ বিদ্যালয় রোড,
-                <br />
-                চাঁদপুর সদর, চাঁদপুর-৩৬০০।
+                <p>চাঁদপুর সদর, চাঁদপুর-৩৬০০।</p>
               </p>
 
               <div className="mt-4 text-gray-700">
