@@ -92,16 +92,19 @@ export default function ServicesPage() {
       title: "পুলিশ ও থানা",
       icon: "🚓",
       link: "/sheba/police",
+      comingSoon: true,
     },
     {
       title: "বিদ্যুৎ অফিস",
       icon: "⚡",
       link: "/sheba/electricity",
+      comingSoon: true,
     },
     {
       title: "পৌরসভা ও ডিসি অফিস",
       icon: "🏢",
       link: "/sheba/municipality",
+      comingSoon: true,
     },
     {
       title: "অনুদান",
@@ -112,7 +115,6 @@ export default function ServicesPage() {
 
   return (
     <main className="max-w-screen-xl mx-auto px-4 py-12 font-[Kalpurush] min-h-[60vh]">
-
       {/* Page Header */}
 
       <header className="text-center mb-12 border-b border-gray-200 pb-6">
@@ -128,44 +130,66 @@ export default function ServicesPage() {
       {/* Services */}
 
       <section aria-labelledby="services-heading">
-
         <h2 id="services-heading" className="sr-only">
           চাঁদপুরের নাগরিক সেবার তালিকা
         </h2>
 
         <nav aria-label="চাঁদপুর নাগরিক সেবা">
-
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-
-            {services.map((service) => (
-              <Link
-                href={service.link}
-                key={service.link}
-                aria-label={`${service.title} সেবা দেখুন`}
-              >
-                <div className="bg-white border border-gray-200 rounded-xl p-5 md:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-[#116cb4] transition-all cursor-pointer group h-[150px] md:h-[160px]">
-
-                  <span
-                    className="text-4xl mb-3 group-hover:scale-110 transition-transform block"
-                    aria-hidden="true"
+            {services.map((service) => {
+              // যেসব সেবা এখনো চালু হয়নি
+              if (service.comingSoon) {
+                return (
+                  <div
+                    key={service.link}
+                    className="relative group bg-white border border-gray-200 rounded-xl p-5 md:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-[#116cb4] transition-all cursor-not-allowed h-[150px] md:h-[160px]"
                   >
-                    {service.icon}
-                  </span>
+                    <span
+                      className="text-4xl mb-3 group-hover:scale-110 transition-transform block"
+                      aria-hidden="true"
+                    >
+                      {service.icon}
+                    </span>
 
-                  <h2 className="text-[16px] md:text-[17px] font-bold text-gray-800 group-hover:text-[#116cb4] transition-colors leading-tight">
-                    {service.title}
-                  </h2>
+                    <h2 className="text-[16px] md:text-[17px] font-bold text-gray-800 leading-tight">
+                      {service.title}
+                    </h2>
 
-                </div>
-              </Link>
-            ))}
+                    {/* Hover message */}
+                    <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/95 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <span className="text-sm md:text-base font-bold text-[#116cb4] px-3">
+                        শীঘ্রই চালু হবে
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
 
+              // চালু থাকা সেবাগুলো আগের মতোই কাজ করবে
+              return (
+                <Link
+                  href={service.link}
+                  key={service.link}
+                  aria-label={`${service.title} সেবা দেখুন`}
+                >
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 md:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-[#116cb4] transition-all cursor-pointer group h-[150px] md:h-[160px]">
+                    <span
+                      className="text-4xl mb-3 group-hover:scale-110 transition-transform block"
+                      aria-hidden="true"
+                    >
+                      {service.icon}
+                    </span>
+
+                    <h2 className="text-[16px] md:text-[17px] font-bold text-gray-800 group-hover:text-[#116cb4] transition-colors leading-tight">
+                      {service.title}
+                    </h2>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
-
         </nav>
-
       </section>
-
     </main>
   );
 }

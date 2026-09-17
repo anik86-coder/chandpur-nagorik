@@ -61,7 +61,7 @@ const doctors: Doctor[] = [
         slug: "chandpur-medical-center",
       },
     ],
-    image: "/doctors/doctor-01.webp",
+    image: "/profile/anik-pic.svg",
     verified: true,
   },
 
@@ -82,7 +82,7 @@ const doctors: Doctor[] = [
         slug: "chandpur-general-hospital-private",
       },
     ],
-    image: "/doctors/doctor-01.webp",
+    image: "/profile/anik-pic.svg",
     verified: true,
   },
 
@@ -99,7 +99,7 @@ const doctors: Doctor[] = [
         slug: "chandpur-250-bed-general-hospital",
       },
     ],
-    image: "/doctors/doctor-01.webp",
+    image: "/profile/anik-pic.svg",
     verified: false,
   },
 
@@ -120,7 +120,7 @@ const doctors: Doctor[] = [
         slug: "chandpur-medical-center",
       },
     ],
-    image: "/doctors/doctor-01.webp",
+    image: "/profile/anik-pic.svg",
     verified: false,
   },
 
@@ -137,7 +137,7 @@ const doctors: Doctor[] = [
         slug: "chandpur-diagnostic-complex",
       },
     ],
-    image: "/doctors/doctor-01.webp",
+    image: "/profile/anik-pic.svg",
     verified: true,
   },
 
@@ -158,7 +158,7 @@ const doctors: Doctor[] = [
         slug: "chandpur-general-hospital-private",
       },
     ],
-    image: "/doctors/doctor-01.webp",
+    image: "/profile/anik-pic.svg",
     verified: false,
   },
 
@@ -183,7 +183,7 @@ const doctors: Doctor[] = [
         slug: "chandpur-medical-center",
       },
     ],
-    image: "/doctors/doctor-01.webp",
+    image: "/profile/anik-pic.svg",
     verified: true,
   },
 
@@ -200,7 +200,7 @@ const doctors: Doctor[] = [
         slug: "chandpur-general-hospital-private",
       },
     ],
-    image: "/doctors/doctor-01.webp",
+    image: "/profile/anik-pic.svg",
     verified: false,
   },
 ];
