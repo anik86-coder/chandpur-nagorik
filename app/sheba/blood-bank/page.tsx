@@ -688,7 +688,7 @@ export default function BloodBankPage() {
         <div className="sm:hidden mb-2 flex justify-start">
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/sheba")}
             className="inline-flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3.5 py-2 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50 active:scale-[0.98] transition-all touch-manipulation"
             aria-label="পেছনে যান"
           >
@@ -700,7 +700,7 @@ export default function BloodBankPage() {
         {/* PC — আগের মতো Blood Bank center, Back button বাম পাশে */}
         <button
           type="button"
-          onClick={() => router.push("/")}
+         onClick={() => router.push("/sheba")}
           className="hidden sm:inline-flex absolute left-0 top-0 z-10 items-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all touch-manipulation"
           aria-label="পেছনে যান"
         >

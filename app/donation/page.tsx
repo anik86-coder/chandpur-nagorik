@@ -10,7 +10,7 @@ export default function DonationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isDonationActive = true;
+  const isDonationActive = false;
 
   const handleDonate = async (
     event: React.FormEvent<HTMLFormElement>
