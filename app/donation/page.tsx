@@ -4,25 +4,88 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function DonationPage() {
-  const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [note, setNote] = useState("");
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // ভবিষ্যতে অনুদান গ্রহণ চালু করতে চাইলে true করুন
-  const isDonationActive = false;
+  const isDonationActive = true;
 
-  const handleCopy = (text: string, type: string) => {
-    if (!isDonationActive) return;
+  const handleDonate = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
 
-    navigator.clipboard.writeText(text);
-    setCopiedItem(type);
+    setError("");
 
-    setTimeout(() => setCopiedItem(null), 2000);
+    const numericAmount = Number(amount);
+
+    // --------------------------------------------------
+    // AMOUNT VALIDATION
+    // --------------------------------------------------
+
+    if (
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
+      setError("সঠিক অনুদানের পরিমাণ লিখুন।");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        "/api/donation/create",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            full_name: name.trim(),
+            note: note.trim(),
+            amount: numericAmount.toFixed(2),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (
+        !response.ok ||
+        !data?.payment_url
+      ) {
+        throw new Error(
+          data?.message ||
+            "পেমেন্ট শুরু করা যায়নি।"
+        );
+      }
+
+      window.location.href =
+        data.payment_url;
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "পেমেন্ট শুরু করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+      );
+
+      setLoading(false);
+    }
   };
+
+  // --------------------------------------------------
+  // SEO STRUCTURED DATA
+  // --------------------------------------------------
 
   const donationSchema = {
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: "চাঁদপুর নাগরিক অনুদান",
-    alternateName: "Chandpur Nagorik Donation",
+    alternateName:
+      "Chandpur Nagorik Donation",
     url: "https://chandpurnagorik.com/donation",
     description:
       "চাঁদপুর নাগরিকের ব্লাড ব্যাংক, ওয়েবসাইট সার্ভার, সামাজিক কার্যক্রম ও কমিউনিটি সহায়তা কার্যক্রম পরিচালনায় সহযোগিতার জন্য অনুদান সম্পর্কিত তথ্য।",
@@ -61,12 +124,12 @@ export default function DonationPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(donationSchema),
+          __html:
+            JSON.stringify(donationSchema),
         }}
       />
 
       <main className="font-[Kalpurush] bg-gray-50 min-h-screen pb-16">
-
         {/* =====================================================
             HERO
         ====================================================== */}
@@ -82,7 +145,11 @@ export default function DonationPage() {
               viewBox="0 0 100 100"
               aria-hidden="true"
             >
-              <circle cx="50" cy="50" r="50" />
+              <circle
+                cx="50"
+                cy="50"
+                r="50"
+              />
             </svg>
 
             <svg
@@ -91,12 +158,15 @@ export default function DonationPage() {
               viewBox="0 0 100 100"
               aria-hidden="true"
             >
-              <circle cx="50" cy="50" r="50" />
+              <circle
+                cx="50"
+                cy="50"
+                r="50"
+              />
             </svg>
           </div>
 
           <div className="max-w-screen-md mx-auto text-center relative z-10">
-
             <div
               className="text-5xl mb-5"
               aria-hidden="true"
@@ -114,16 +184,15 @@ export default function DonationPage() {
             </h1>
 
             <p className="text-lg md:text-xl text-blue-100 mb-8 max-w-2xl mx-auto leading-8">
-              চাঁদপুর নাগরিক-এর ব্লাড ব্যাংক, ওয়েবসাইট সার্ভার
-              এবং সামাজিক কার্যক্রমগুলো পরিচালনা করতে আপনাদের
+              চাঁদপুর নাগরিক-এর ব্লাড ব্যাংক,
+              ওয়েবসাইট সার্ভার এবং সামাজিক
+              কার্যক্রমগুলো পরিচালনা করতে আপনাদের
               সহযোগিতা আমাদের একান্ত কাম্য।
             </p>
-
           </div>
         </section>
 
         <div className="max-w-screen-xl mx-auto px-4 -mt-10 relative z-20">
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
             {/* =================================================
@@ -135,7 +204,6 @@ export default function DonationPage() {
               aria-labelledby="donation-purpose-title"
             >
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-
                 <h2
                   id="donation-purpose-title"
                   className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3"
@@ -162,9 +230,9 @@ export default function DonationPage() {
                     </h3>
 
                     <p className="text-gray-600 text-[15px] leading-7">
-                      জরুরি মুহূর্তে রক্তদাতাদের সাথে যোগাযোগ
-                      স্থাপন এবং সিস্টেমটির নিরবচ্ছিন্ন সেবা
-                      নিশ্চিত করতে।
+                      জরুরি মুহূর্তে রক্তদাতাদের সাথে
+                      যোগাযোগ স্থাপন এবং সিস্টেমটির
+                      নিরবচ্ছিন্ন সেবা নিশ্চিত করতে।
                     </p>
                   </article>
 
@@ -190,8 +258,9 @@ export default function DonationPage() {
                     </h3>
 
                     <p className="text-gray-600 text-[15px] leading-7">
-                      চাঁদপুরের হতদরিদ্র, চিকিৎসা বঞ্চিত বা জরুরি
-                      বিপদে পড়া মানুষদের আর্থিকভাবে সাহায্য করা।
+                      চাঁদপুরের হতদরিদ্র, চিকিৎসা
+                      বঞ্চিত বা জরুরি বিপদে পড়া
+                      মানুষদের আর্থিকভাবে সাহায্য করা।
                     </p>
                   </article>
 
@@ -203,8 +272,9 @@ export default function DonationPage() {
                     </h3>
 
                     <p className="text-gray-600 text-[15px] leading-7">
-                      কমিউনিটির বিভিন্ন জনসচেতনতামূলক কাজ এবং
-                      স্বেচ্ছাসেবকদের ইভেন্ট পরিচালনা করা।
+                      কমিউনিটির বিভিন্ন জনসচেতনতামূলক
+                      কাজ এবং স্বেচ্ছাসেবকদের ইভেন্ট
+                      পরিচালনা করা।
                     </p>
                   </article>
 
@@ -213,31 +283,26 @@ export default function DonationPage() {
             </section>
 
             {/* =================================================
-                DONATION METHODS
+                ONLINE DONATION
             ================================================== */}
 
             <section
               className="lg:col-span-1"
               aria-labelledby="donation-method-title"
             >
-              <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 sticky top-28 relative overflow-hidden">
+              <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 sticky top-28">
 
                 <h2
                   id="donation-method-title"
                   className="text-xl font-bold text-gray-800 mb-6 text-center border-b border-gray-100 pb-4"
                 >
-                  অনুদান পাঠানোর মাধ্যম
+                  অনলাইনে অনুদান দিন
                 </h2>
 
-                {/* Donation Disabled Overlay */}
+                {!isDonationActive ? (
+                  <div className="text-center py-8">
 
-                {!isDonationActive && (
-                  <div
-                    className="absolute inset-0 z-10 bg-white/80 backdrop-blur-[3px] flex flex-col items-center justify-center p-6 text-center rounded-2xl"
-                    role="status"
-                  >
-                    <div className="bg-blue-100 text-[#116cb4] p-4 rounded-full mb-4 shadow-sm">
-
+                    <div className="bg-blue-100 text-[#116cb4] p-4 rounded-full mb-4 shadow-sm inline-flex">
                       <svg
                         className="w-8 h-8"
                         fill="none"
@@ -252,7 +317,6 @@ export default function DonationPage() {
                           d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
-
                     </div>
 
                     <h3 className="text-xl font-bold text-gray-900 mb-2">
@@ -260,189 +324,239 @@ export default function DonationPage() {
                     </h3>
 
                     <p className="text-gray-600 text-sm font-medium leading-relaxed">
-                      অনলাইন অনুদান গ্রহণের প্রক্রিয়াটি বর্তমানে
-                      তৈরি করা হচ্ছে। ভবিষ্যতে আপনারা এখান থেকেই
-                      অনুদান পাঠাতে পারবেন।
+                      অনলাইন অনুদান গ্রহণ বর্তমানে
+                      বন্ধ রয়েছে।
                     </p>
+
                   </div>
+                ) : (
+
+                  <form
+                    onSubmit={handleDonate}
+                    className="space-y-4"
+                  >
+
+                    {/* =================================================
+                        NAME - OPTIONAL
+                    ================================================== */}
+
+                    <div>
+                      <label
+                        htmlFor="donor-name"
+                        className="block text-sm font-bold text-gray-700 mb-2"
+                      >
+                        আপনার নাম
+                        <span className="text-gray-400 font-normal ml-1">
+                          (ঐচ্ছিক)
+                        </span>
+                      </label>
+
+                      <input
+                        id="donor-name"
+                        type="text"
+                        value={name}
+                        onChange={(e) =>
+                          setName(e.target.value)
+                        }
+                        placeholder="আপনার নাম"
+                        autoComplete="name"
+                        maxLength={100}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-[#116cb4] focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+
+                    {/* =================================================
+                        NOTE - OPTIONAL
+                    ================================================== */}
+
+                    <div>
+                      <label
+                        htmlFor="donation-note"
+                        className="block text-sm font-bold text-gray-700 mb-2"
+                      >
+                        নোট
+                        <span className="text-gray-400 font-normal ml-1">
+                          (ঐচ্ছিক)
+                        </span>
+                      </label>
+
+                      <textarea
+                        id="donation-note"
+                        value={note}
+                        onChange={(e) =>
+                          setNote(e.target.value)
+                        }
+                        placeholder="আপনার কোনো কথা লিখতে পারেন"
+                        rows={3}
+                        maxLength={500}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none resize-none focus:border-[#116cb4] focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+
+                    {/* =================================================
+                        AMOUNT
+                    ================================================== */}
+
+                    <div>
+                      <label
+                        htmlFor="donation-amount"
+                        className="block text-sm font-bold text-gray-700 mb-2"
+                      >
+                        অনুদানের পরিমাণ (৳)
+                        <span className="text-red-500 ml-1">
+                          *
+                        </span>
+                      </label>
+
+                      <input
+                        id="donation-amount"
+                        type="number"
+                        min="1"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={amount}
+                        onChange={(e) =>
+                          setAmount(e.target.value)
+                        }
+                        placeholder="যেমন: 500"
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-[#116cb4] focus:ring-2 focus:ring-blue-100"
+                        required
+                      />
+                    </div>
+
+                    {/* =================================================
+                        PAYMENT METHODS
+                    ================================================== */}
+
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 mt-2">
+
+                      <div className="text-center mb-3">
+                        <p className="text-sm font-bold text-gray-700">
+                          নিরাপদ পেমেন্ট
+                        </p>
+
+                        <p className="text-xs text-gray-500 mt-1">
+                          পেমেন্ট পেজে আপনার উপলব্ধ
+                          পেমেন্ট পদ্ধতি নির্বাচন করুন
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2">
+
+                        {/* bKash */}
+
+                        <div className="bg-white border border-gray-200 rounded-xl p-2 flex flex-col items-center justify-center min-h-[62px]">
+                          <div className="w-9 h-9 rounded-lg bg-[#e2136e] text-white flex items-center justify-center font-bold text-xs">
+                            bKash
+                          </div>
+
+                          <span className="text-[10px] text-gray-600 mt-1">
+                            bKash
+                          </span>
+                        </div>
+
+                        {/* Nagad */}
+
+                        <div className="bg-white border border-gray-200 rounded-xl p-2 flex flex-col items-center justify-center min-h-[62px]">
+                          <div className="w-9 h-9 rounded-lg bg-[#f58220] text-white flex items-center justify-center font-bold text-[9px]">
+                            Nagad
+                          </div>
+
+                          <span className="text-[10px] text-gray-600 mt-1">
+                            Nagad
+                          </span>
+                        </div>
+
+                        {/* Visa */}
+
+                        <div className="bg-white border border-gray-200 rounded-xl p-2 flex flex-col items-center justify-center min-h-[62px]">
+                          <div className="w-9 h-9 rounded-lg bg-[#1a1f71] text-white flex items-center justify-center font-bold italic text-[11px]">
+                            VISA
+                          </div>
+
+                          <span className="text-[10px] text-gray-600 mt-1">
+                            Visa
+                          </span>
+                        </div>
+
+                        {/* Mastercard */}
+
+                        <div className="bg-white border border-gray-200 rounded-xl p-2 flex flex-col items-center justify-center min-h-[62px]">
+                          <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
+                            <div className="flex -space-x-2">
+                              <span className="w-5 h-5 rounded-full bg-red-500 block" />
+                              <span className="w-5 h-5 rounded-full bg-yellow-400 block" />
+                            </div>
+                          </div>
+
+                          <span className="text-[10px] text-gray-600 mt-1">
+                            Mastercard
+                          </span>
+                        </div>
+
+                      </div>
+
+                      <div className="flex items-center justify-center gap-2 mt-4 text-xs text-gray-500">
+                        <svg
+                          className="w-4 h-4 text-green-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-7a2 2 0 00-2-2H6a2 2 0 00-2 2v7a2 2 0 002 2zm10-9V7a4 4 0 00-8 0v3h8z"
+                          />
+                        </svg>
+
+                        <span>
+                          নিরাপদ পেমেন্ট গেটওয়ে
+                        </span>
+                      </div>
+
+                    </div>
+
+                    {/* =================================================
+                        ERROR
+                    ================================================== */}
+
+                    {error && (
+                      <div
+                        className="rounded-xl bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm leading-6"
+                        role="alert"
+                      >
+                        {error}
+                      </div>
+                    )}
+
+                    {/* =================================================
+                        DONATE BUTTON
+                    ================================================== */}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-[#116cb4] text-white font-bold py-3.5 px-5 rounded-xl hover:bg-[#0d5a96] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {loading
+                        ? "পেমেন্ট পেজ প্রস্তুত হচ্ছে..."
+                        : "অনুদান দিন"}
+                    </button>
+
+                    <p className="text-xs text-gray-500 text-center leading-5">
+                      বাটনে ক্লিক করলে নিরাপদ
+                      পেমেন্ট পেজে নিয়ে যাওয়া হবে।
+                      পেমেন্ট সম্পন্ন না হওয়া পর্যন্ত
+                      কোনো অনুদান সফল হিসেবে গণ্য হবে না।
+                    </p>
+
+                  </form>
+
                 )}
 
-                {/* Payment Methods */}
-
-                <div
-                  className={`space-y-4 ${
-                    !isDonationActive
-                      ? "opacity-30 pointer-events-none select-none filter blur-[1px]"
-                      : ""
-                  }`}
-                >
-
-                  {/* bKash */}
-
-                  <div className="border border-gray-200 rounded-xl p-4 hover:border-[#e2136e] transition-colors relative group">
-
-                    <div className="flex items-center gap-3 mb-2">
-
-                      <div className="bg-[#e2136e] text-white font-bold text-xs px-2 py-1 rounded">
-                        bKash
-                      </div>
-
-                      <span className="font-semibold text-gray-700 text-sm">
-                        পার্সোনাল
-                      </span>
-
-                    </div>
-
-                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-
-                      <span className="text-xl font-bold tracking-wider text-gray-800">
-                        019XXXXXXXX
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleCopy("019XXXXXXXX", "bkash")
-                        }
-                        className="bg-white border border-gray-300 p-2 rounded-md hover:bg-gray-100"
-                        aria-label="bKash নম্বর কপি করুন"
-                      >
-                        {copiedItem === "bkash" ? (
-                          <span className="text-[#e2136e] text-xs font-bold font-sans">
-                            Copied!
-                          </span>
-                        ) : (
-                          <svg
-                            className="w-5 h-5 text-gray-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                            />
-                          </svg>
-                        )}
-                      </button>
-
-                    </div>
-                  </div>
-
-                  {/* Nagad */}
-
-                  <div className="border border-gray-200 rounded-xl p-4 hover:border-[#f7941d] transition-colors relative group">
-
-                    <div className="flex items-center gap-3 mb-2">
-
-                      <div className="bg-[#f7941d] text-white font-bold text-xs px-2 py-1 rounded">
-                        Nagad
-                      </div>
-
-                      <span className="font-semibold text-gray-700 text-sm">
-                        পার্সোনাল
-                      </span>
-
-                    </div>
-
-                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-
-                      <span className="text-xl font-bold tracking-wider text-gray-800">
-                        017XXXXXXXX
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleCopy("017XXXXXXXX", "nagad")
-                        }
-                        className="bg-white border border-gray-300 p-2 rounded-md hover:bg-gray-100"
-                        aria-label="Nagad নম্বর কপি করুন"
-                      >
-                        {copiedItem === "nagad" ? (
-                          <span className="text-[#f7941d] text-xs font-bold font-sans">
-                            Copied!
-                          </span>
-                        ) : (
-                          <svg
-                            className="w-5 h-5 text-gray-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                            />
-                          </svg>
-                        )}
-                      </button>
-
-                    </div>
-                  </div>
-
-                  {/* Rocket */}
-
-                  <div className="border border-gray-200 rounded-xl p-4 hover:border-[#8c1596] transition-colors relative group">
-
-                    <div className="flex items-center gap-3 mb-2">
-
-                      <div className="bg-[#8c1596] text-white font-bold text-xs px-2 py-1 rounded">
-                        Rocket
-                      </div>
-
-                      <span className="font-semibold text-gray-700 text-sm">
-                        পার্সোনাল
-                      </span>
-
-                    </div>
-
-                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-
-                      <span className="text-xl font-bold tracking-wider text-gray-800">
-                        018XXXXXXXX
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleCopy("018XXXXXXXX", "rocket")
-                        }
-                        className="bg-white border border-gray-300 p-2 rounded-md hover:bg-gray-100"
-                        aria-label="Rocket নম্বর কপি করুন"
-                      >
-                        {copiedItem === "rocket" ? (
-                          <span className="text-[#8c1596] text-xs font-bold font-sans">
-                            Copied!
-                          </span>
-                        ) : (
-                          <svg
-                            className="w-5 h-5 text-gray-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                            />
-                          </svg>
-                        )}
-                      </button>
-
-                    </div>
-                  </div>
-
-                </div>
               </div>
             </section>
 
@@ -454,12 +568,14 @@ export default function DonationPage() {
         ====================================================== */}
 
         <div className="max-w-screen-xl mx-auto px-4 mt-8 text-center">
+
           <Link
             href="/sheba"
             className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-5 py-2.5 rounded-xl font-bold hover:bg-gray-100 transition-colors"
           >
             ← নাগরিক সেবায় ফিরে যান
           </Link>
+
         </div>
 
       </main>

@@ -204,8 +204,18 @@ export async function POST(request: Request) {
     // SES CONFIGURATION
     // --------------------------------------------------
 
-    const fromEmail =
-      process.env.SES_FROM_EMAIL;
+    const fromEmail = String(
+      process.env.SES_FROM_EMAIL || ""
+    )
+      .trim()
+      .replace(/^["']|["']$/g, "");
+
+    const fromName = String(
+      process.env.SES_FROM_NAME ||
+        "Chandpur Nagorik"
+    )
+      .trim()
+      .replace(/^["']|["']$/g, "");
 
     if (!fromEmail) {
       console.error(
@@ -221,6 +231,29 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // Basic email validation
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(fromEmail)) {
+      console.error(
+        "Invalid SES_FROM_EMAIL:",
+        fromEmail
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Server email configuration is invalid.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // SES sender with display name
+    const sender = `${fromName} <${fromEmail}>`;
 
     // --------------------------------------------------
     // SECURE OTP GENERATION
@@ -398,7 +431,7 @@ export async function POST(request: Request) {
 
     const command =
       new SendEmailCommand({
-        Source: fromEmail,
+        Source: sender,
 
         Destination: {
           ToAddresses: [
@@ -461,6 +494,7 @@ export async function POST(request: Request) {
     console.log("SES OTP sent:", {
       messageId: result.MessageId,
       donorId: normalizedDonorId,
+      sender,
     });
 
     // --------------------------------------------------
