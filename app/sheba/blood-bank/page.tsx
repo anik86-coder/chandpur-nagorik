@@ -246,7 +246,12 @@ export default function BloodBankPage() {
       );
 
       const sortedDonors = sortDonorsByAvailability(
-        snapshot.docs.map(toPublicDonor)
+        snapshot.docs
+          .filter((donorDoc) => {
+            const data = donorDoc.data() || {};
+            return data.active !== false && !data.deletedAt;
+          })
+          .map(toPublicDonor)
       );
 
       setAllGroupDonors(sortedDonors);
@@ -307,7 +312,12 @@ export default function BloodBankPage() {
       if (requestId !== requestIdRef.current) return;
 
       const sortedDonors = sortDonorsByAvailability(
-        snapshot.docs.map(toPublicDonor)
+        snapshot.docs
+          .filter((donorDoc) => {
+            const data = donorDoc.data() || {};
+            return data.active !== false && !data.deletedAt;
+          })
+          .map(toPublicDonor)
       );
 
       setAllGroupDonors(sortedDonors);
@@ -379,7 +389,10 @@ export default function BloodBankPage() {
         const donorId = String(d.id || "").toLowerCase();
         const name = String(data.name || "").toLowerCase();
 
+        // Turned-off/deleted donors must not appear on the public website.
         if (
+          data.active !== false &&
+          !data.deletedAt &&
           (donorId.includes(term) || name.includes(term)) &&
           !results.some(result => result.id === d.id)
         ) {

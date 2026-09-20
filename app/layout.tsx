@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -153,6 +152,18 @@ export default function RootLayout({
             __html: JSON.stringify(organizationSchema),
           }}
         />
+
+        {/* =========================
+            Google AdSense
+            Publisher ID:
+            ca-pub-9802392928690253
+        ========================= */}
+
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9802392928690253"
+          crossOrigin="anonymous"
+        />
       </head>
 
       <body className="min-h-screen flex flex-col">
@@ -161,17 +172,6 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
 
         <Footer />
-
-        {/* =========================
-            Google AdSense
-        ========================= */}
-
-        <Script
-          async
-          strategy="afterInteractive"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9802392928690253"
-          crossOrigin="anonymous"
-        />
       </body>
     </html>
   );
