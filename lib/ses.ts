@@ -2,11 +2,21 @@ import "server-only";
 
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
-const region = process.env.AWS_REGION;
+const region = process.env.SES_AWS_REGION;
+const accessKeyId = process.env.SES_AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.SES_AWS_SECRET_ACCESS_KEY;
 const fromEmail = process.env.SES_FROM_EMAIL;
 
 if (!region) {
-  throw new Error("AWS_REGION is missing.");
+  throw new Error("SES_AWS_REGION is missing.");
+}
+
+if (!accessKeyId) {
+  throw new Error("SES_AWS_ACCESS_KEY_ID is missing.");
+}
+
+if (!secretAccessKey) {
+  throw new Error("SES_AWS_SECRET_ACCESS_KEY is missing.");
 }
 
 if (!fromEmail) {
@@ -15,6 +25,10 @@ if (!fromEmail) {
 
 export const sesClient = new SESClient({
   region,
+  credentials: {
+    accessKeyId,
+    secretAccessKey,
+  },
 });
 
 type SendEmailOptions = {

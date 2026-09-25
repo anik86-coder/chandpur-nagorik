@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { db } from "../../../firebase"; 
 import { collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer, doc, type DocumentSnapshot } from "firebase/firestore";
+import DonorProfilePhotoEditor from "../../../components/blood-bank/DonorProfilePhotoEditor";
 
 const checkAvailability = (lastDonationDate: string) => {
   if (!lastDonationDate) return true;
@@ -18,6 +19,34 @@ const checkAvailability = (lastDonationDate: string) => {
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 const BUSINESS_VERIFIED_DONOR_ID = "95164";
+const DEFAULT_DONOR_PROFILE_PHOTO = "/profile/anik-pic.svg";
+
+// CloudFront is used only for donor profile images.
+// All other Blood Bank functionality and non-donor images remain unchanged.
+const CLOUDFRONT_DOMAIN = "https://d2vneetxm2xhbc.cloudfront.net";
+const DONOR_S3_HOST =
+  "chandpur-nagorik-donor-media.s3.eu-north-1.amazonaws.com";
+
+const getDonorImageUrl = (imageUrl: string) => {
+  if (!imageUrl) return DEFAULT_DONOR_PROFILE_PHOTO;
+
+  // Keep local/default images unchanged.
+  if (imageUrl.startsWith("/")) return imageUrl;
+
+  try {
+    const url = new URL(imageUrl);
+
+    // Only donor images stored in our S3 bucket use CloudFront.
+    if (url.hostname === DONOR_S3_HOST) {
+      return `${CLOUDFRONT_DOMAIN}${url.pathname}${url.search}`;
+    }
+
+    // Any other image URL remains unchanged.
+    return imageUrl;
+  } catch {
+    return imageUrl;
+  }
+};
 const toPublicDonor = (donorDoc: DocumentSnapshot) => {
   const data = donorDoc.data() || {};
 
@@ -32,6 +61,8 @@ const toPublicDonor = (donorDoc: DocumentSnapshot) => {
     allergy: data.allergy || "",
     email: data.email || "",
     lastDonation: data.lastDonation || "",
+    donationCount: Number(data.donationCount || 0),
+    profilePhoto: data.profilePhoto || data.photoURL || DEFAULT_DONOR_PROFILE_PHOTO,
     verified: data.verified === true,
     verifiedAt: data.verifiedAt || "",
     createdAt: data.createdAt || "",
@@ -857,146 +888,215 @@ export default function BloodBankPage() {
                       const isAvailable = checkAvailability(donor.lastDonation);
 
                       return (
-                        <div key={donor.id} className={`p-5 rounded-lg border ${isAvailable ? 'border-green-200 bg-green-50/30' : 'border-gray-200 bg-gray-50 opacity-75'} hover:shadow-md transition-shadow`}>
-                          <div className="flex justify-between items-center">
-                            <div className="flex-1">
-                              <h4 className="font-bold text-xl text-gray-900 flex items-center gap-1.5">
-                                <span>{donor.name}</span>
-
-                                {donor.id === BUSINESS_VERIFIED_DONOR_ID ? (
-                                  <span
-                                    className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
-                                    onMouseEnter={() => setHoveredVerificationId(`business-${donor.id}`)}
-                                    onMouseLeave={() => {
-                                      setHoveredVerificationId(null);
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      showVerificationPopup(`business-${donor.id}`);
-                                    }}
-                                    role="button"
-                                    tabIndex={0}
-                                    onBlur={() => closeVerificationPopup()}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        showVerificationPopup(`business-${donor.id}`);
-                                      }
-                                    }}
-                                    aria-label="Business Verified"
-                                  >
-                                    <img
-                                      src="/golden-verify.png"
-                                      alt="Business Verified"
-                                      className="w-5 h-5 object-contain pointer-events-none select-none"
-                                    />
-
-                                    {
-                                      (hoveredVerificationId === `business-${donor.id}` ||
-                                        clickedVerificationId === `business-${donor.id}`) && (
-                                      <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-[180] w-max min-w-[180px] rounded-xl bg-gray-900/95 px-4 py-2.5 text-center shadow-lg border border-white/10 pointer-events-none transition-opacity duration-100">
-                                        <span className="block text-sm leading-5 font-bold text-white">
-                                          Business Verified
-                                        </span>
-                                      </span>
-                                    )}
-                                  </span>
-                                ) : donor.verified === true ? (
-                                  <span
-                                    className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
-                                    onMouseEnter={() => setHoveredVerificationId(`verified-${donor.id}`)}
-                                    onMouseLeave={() => {
-                                      setHoveredVerificationId(null);
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      showVerificationPopup(`verified-${donor.id}`);
-                                    }}
-                                    role="button"
-                                    tabIndex={0}
-                                    onBlur={() => closeVerificationPopup()}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        showVerificationPopup(`verified-${donor.id}`);
-                                      }
-                                    }}
-                                    aria-label="Verified Donor"
-                                  >
-                                    <img
-                                      src="/check1.png"
-                                      alt="Verified donor"
-                                      className="w-5 h-5 object-contain pointer-events-none select-none"
-                                    />
-
-                                    {
-                                      (hoveredVerificationId === `verified-${donor.id}` ||
-                                        clickedVerificationId === `verified-${donor.id}`) && (
-                                      <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-[180] w-max min-w-[195px] rounded-xl bg-gray-900/95 px-4 py-2.5 text-center shadow-lg border border-white/10 pointer-events-none transition-opacity duration-100">
-                                        <span className="block text-sm leading-5 font-bold text-white">
-                                          Verified Donor
-                                        </span>
-                                        <span className="block mt-0.5 text-xs leading-5 font-semibold text-gray-300">
-                                          Since {donor.verifiedAt
-                                            ? new Date(donor.verifiedAt).toLocaleDateString("en-GB", {
-                                                day: "numeric",
-                                                month: "long",
-                                                year: "numeric",
-                                              })
-                                            : "—"}
-                                        </span>
-                                      </span>
-                                    )}
-                                  </span>
-                                ) : null}
-                              </h4>
-
-                              {donor.address && (
-                                <div className="mt-1.5 mb-2">
-                                  <span className="bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-sans">
-                                    <svg className="w-3.5 h-3.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                                    </svg>
-                                    {donor.address}
-                                  </span>
+                        <div
+                          key={donor.id}
+                          className={`p-4 rounded-xl border ${
+                            isAvailable
+                              ? "border-green-200 bg-green-50/30"
+                              : "border-gray-200 bg-gray-50 opacity-75"
+                          } hover:shadow-md transition-shadow`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            {/* Donor profile + information */}
+                            <div className="flex items-start gap-3 min-w-0 flex-1">
+                              {/* Profile picture */}
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 shrink-0 rounded-full bg-gradient-to-br from-blue-400 via-blue-500 to-sky-400 p-[3px] shadow-[0_4px_12px_rgba(59,130,246,0.20)] ring-2 ring-blue-50">
+                                <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center ring-1 ring-blue-100">
+                                  <img
+                                    src={getDonorImageUrl(
+                                    donor.profilePhoto || DEFAULT_DONOR_PROFILE_PHOTO
+                                  )}
+                                    alt={donor.name || "Donor"}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
                                 </div>
-                              )}
-
-                              <div
-                                className="flex items-center gap-1.5 mt-1 cursor-pointer group w-fit transition-all"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(donor.id);
-                                  setCopiedId(donor.id);
-                                  setTimeout(() => setCopiedId(null), 2000);
-                                }}
-                                title="ID কপি করতে ক্লিক করুন"
-                              >
-                                <p className="text-xs font-normal text-gray-400 group-hover:text-gray-600 transition-colors">
-                                  ID: <span className="font-mono font-bold text-gray-600 tracking-wider select-all">{donor.id}</span>
-                                </p>
-
-                                {copiedId === donor.id ? (
-                                  <span className="text-[9px] font-bold text-green-600 bg-green-50 px-1 rounded flex items-center font-sans">
-                                    Copied!
-                                  </span>
-                                ) : (
-                                  <svg className="w-3 h-3 text-gray-400 group-hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012 2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 002 2v8a2 2 0 002 2z" />
-                                  </svg>
-                                )}
                               </div>
 
-                              <span className={`inline-block mt-3 px-3 py-1.5 text-sm font-bold rounded-full ${isAvailable ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
-                                {isAvailable ? '✅ রক্ত দিতে প্রস্তুত' : '⏳ এখন পারবেন না'}
-                              </span>
+                              <div className="min-w-0 flex-1">
+                                {/* Name + tick + badge */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h4 className="font-bold text-xl text-gray-900 leading-tight">
+                                    {donor.name}
+                                  </h4>
+
+                                  {donor.id === BUSINESS_VERIFIED_DONOR_ID ? (
+                                    <span
+                                      className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
+                                      onMouseEnter={() =>
+                                        setHoveredVerificationId(`business-${donor.id}`)
+                                      }
+                                      onMouseLeave={() => {
+                                        setHoveredVerificationId(null);
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        showVerificationPopup(`business-${donor.id}`);
+                                      }}
+                                      role="button"
+                                      tabIndex={0}
+                                      onBlur={() => closeVerificationPopup()}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          showVerificationPopup(`business-${donor.id}`);
+                                        }
+                                      }}
+                                      aria-label="Business Verified"
+                                    >
+                                      <img
+                                        src="/golden-verify.png"
+                                        alt="Business Verified"
+                                        className="w-5 h-5 object-contain pointer-events-none select-none"
+                                      />
+
+                                      {(hoveredVerificationId === `business-${donor.id}` ||
+                                        clickedVerificationId === `business-${donor.id}`) && (
+                                        <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-[180] w-max min-w-[180px] rounded-xl bg-gray-900/95 px-4 py-2.5 text-center shadow-lg border border-white/10 pointer-events-none">
+                                          <span className="block text-sm leading-5 font-bold text-white">
+                                            Business Verified
+                                          </span>
+                                        </span>
+                                      )}
+                                    </span>
+                                  ) : donor.verified === true ? (
+                                    <span
+                                      className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
+                                      onMouseEnter={() =>
+                                        setHoveredVerificationId(`verified-${donor.id}`)
+                                      }
+                                      onMouseLeave={() => {
+                                        setHoveredVerificationId(null);
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        showVerificationPopup(`verified-${donor.id}`);
+                                      }}
+                                      role="button"
+                                      tabIndex={0}
+                                      onBlur={() => closeVerificationPopup()}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          showVerificationPopup(`verified-${donor.id}`);
+                                        }
+                                      }}
+                                      aria-label="Verified Donor"
+                                    >
+                                      <img
+                                        src="/check1.png"
+                                        alt="Verified donor"
+                                        className="w-5 h-5 object-contain pointer-events-none select-none"
+                                      />
+
+                                      {(hoveredVerificationId === `verified-${donor.id}` ||
+                                        clickedVerificationId === `verified-${donor.id}`) && (
+                                        <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-[180] w-max min-w-[195px] rounded-xl bg-gray-900/95 px-4 py-2.5 text-center shadow-lg border border-white/10 pointer-events-none">
+                                          <span className="block text-sm leading-5 font-bold text-white">
+                                            Verified Donor
+                                          </span>
+                                          <span className="block mt-0.5 text-xs leading-5 font-semibold text-gray-300">
+                                            Since{" "}
+                                            {donor.verifiedAt
+                                              ? new Date(donor.verifiedAt).toLocaleDateString(
+                                                  "en-GB",
+                                                  {
+                                                    day: "numeric",
+                                                    month: "long",
+                                                    year: "numeric",
+                                                  }
+                                                )
+                                              : "—"}
+                                          </span>
+                                        </span>
+                                      )}
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {/* Address */}
+                                {donor.address && (
+                                  <div className="mt-1.5 mb-1.5">
+                                    <span className="bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-sans max-w-full">
+                                      <svg
+                                        className="w-3.5 h-3.5 text-gray-400 shrink-0"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                      <span className="truncate">{donor.address}</span>
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* ID */}
+                                <div
+                                  className="flex items-center gap-1.5 mt-1 cursor-pointer group w-fit transition-all"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(donor.id);
+                                    setCopiedId(donor.id);
+                                    setTimeout(() => setCopiedId(null), 2000);
+                                  }}
+                                  title="ID কপি করতে ক্লিক করুন"
+                                >
+                                  <p className="text-xs font-normal text-gray-400 group-hover:text-gray-600 transition-colors">
+                                    ID:{" "}
+                                    <span className="font-mono font-bold text-gray-600 tracking-wider select-all">
+                                      {donor.id}
+                                    </span>
+                                  </p>
+
+                                  {copiedId === donor.id ? (
+                                    <span className="text-[9px] font-bold text-green-600 bg-green-50 px-1 rounded flex items-center font-sans">
+                                      Copied!
+                                    </span>
+                                  ) : (
+                                    <svg
+                                      className="w-3 h-3 text-gray-400 group-hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+
+                                {/* Availability */}
+                                <span
+                                  className={`inline-block mt-2 px-3 py-1.5 text-sm font-bold rounded-full ${
+                                    isAvailable
+                                      ? "bg-green-100 text-green-700 border border-green-200"
+                                      : "bg-red-100 text-red-700 border border-red-200"
+                                  }`}
+                                >
+                                  {isAvailable
+                                    ? "✅ রক্ত দিতে প্রস্তুত"
+                                    : "⏳ এখন পারবেন না"}
+                                </span>
+                              </div>
                             </div>
 
-                            <div className="text-right">
+                            {/* Details button */}
+                            <div className="text-right shrink-0">
                               {isAvailable ? (
                                 <button
-                                  onClick={() => { setDetailsModal(donor); setRevealedPhone(null); }}
+                                  onClick={() => {
+                                    setDetailsModal(donor);
+                                    setRevealedPhone(null);
+                                  }}
                                   className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
                                 >
                                   বিস্তারিত দেখুন
@@ -1116,117 +1216,243 @@ export default function BloodBankPage() {
         </>
 
       {detailsModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[140] px-4 backdrop-blur-sm">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setDetailsModal(null)} className="absolute top-4 right-5 text-gray-400 hover:text-red-600 text-2xl font-bold">×</button>
-            <h3 className="text-xl font-bold mb-5 text-gray-800 border-b-2 border-red-100 pb-2 mt-2">ডোনারের বিস্তারিত তথ্য</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[140] px-3 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-[390px] rounded-3xl shadow-2xl relative max-h-[92vh] overflow-y-auto">
+            {/* Close */}
+            <button
+              type="button"
+              onClick={() => setDetailsModal(null)}
+              className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 text-2xl font-bold flex items-center justify-center transition-all"
+              aria-label="বন্ধ করুন"
+            >
+              ×
+            </button>
 
-            <div className="space-y-3 mb-6 text-gray-700">
-              <p><span className="font-bold text-gray-500 w-24 inline-block">নাম:</span> <span className="text-xl font-bold text-gray-900">{detailsModal.name}</span></p>
-              <p><span className="font-bold text-gray-500 w-24 inline-block">রক্তের গ্রুপ:</span> <span className="text-red-600 font-bold text-lg">{detailsModal.group}</span></p>
-              <p><span className="font-bold text-gray-500 w-24 inline-block">ঠিকানা:</span> {detailsModal.address}</p>
-              <p><span className="font-bold text-gray-500 w-24 inline-block">জন্মতারিখ:</span> {detailsModal.dob}</p>
-              {detailsModal.disease && <p><span className="font-bold text-gray-500 w-24 inline-block">রোগ:</span> {detailsModal.disease}</p>}
-              {detailsModal.allergy && <p><span className="font-bold text-gray-500 w-24 inline-block">অ্যালার্জি:</span> {detailsModal.allergy}</p>}
-            </div>
-
-            <div className="bg-green-50 p-5 rounded-xl text-center border border-green-200">
-              <p className="text-green-700 font-bold mb-4 flex items-center justify-center gap-2"><span>✅</span> রক্ত দিতে প্রস্তুত</p>
-              
-              {revealedPhone ? (
-                <div className="flex flex-col items-center gap-4">
-                  <a href={`tel:${revealedPhone}`} className="text-2xl font-bold text-[#116cb4] tracking-widest bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 w-full">{revealedPhone}</a>
-                  <button
-                    onClick={() => {
-                      setDetailsModal(null);
-                      setLoginModal({ isOpen: true, donorId: detailsModal.id });
-                    }}
-                    className="bg-green-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-green-700 w-full shadow-md transition-colors"
-                  >
-                    আমি রক্ত দিয়েছি (আপডেট)
-                  </button>
-                </div>
-              ) : !showTurnstile ? (
-                <button
-                  type="button"
-                  onClick={handlePhoneReveal}
-                  className="
-                    bg-[#116cb4]
-                    text-white
-                    px-6
-                    py-3
-                    rounded-lg
-                    font-bold
-                    hover:bg-blue-700
-                    w-full
-                    transition-all
-                    shadow-md
-                  "
-                >
-                  মোবাইল নম্বর দেখুন
-                </button>
-              ) : (
-                <div className="bg-white rounded-xl border border-blue-100 p-4">
-                  <p className="text-sm font-bold text-gray-700 mb-3">
-                    নম্বর দেখতে আগে যাচাই করুন
-                  </p>
-
-                  <div className="flex justify-center">
-                    <Turnstile
-                      key={turnstileKey}
-                      siteKey={
-                        process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
-                      }
-                      onSuccess={handleTurnstileSuccess}
-                      onError={() => {
-                        setTurnstileLoading(false);
-
-                        showToast(
-                          "CAPTCHA verification ব্যর্থ হয়েছে। আবার চেষ্টা করুন।",
-                          "error"
-                        );
-                      }}
-                      onExpire={() => {
-                        setTurnstileLoading(false);
-
-                        showToast(
-                          "CAPTCHA-এর সময় শেষ হয়েছে। আবার যাচাই করুন।",
-                          "error"
-                        );
-                      }}
-                      options={{
-                        theme: "light",
-                        size: "normal",
-                      }}
-                    />
+            <div className="px-5 pt-6 pb-5">
+              {/* Profile */}
+              <div className="flex flex-col items-center text-center">
+                <div className="relative inline-flex items-center">
+                  {/* Square profile picture with soft red ring */}
+                  <div className="w-[96px] h-[96px] rounded-2xl bg-gradient-to-br from-red-400 via-red-500 to-rose-400 p-[3px] shadow-[0_7px_20px_rgba(239,68,68,0.22)] ring-2 ring-red-100">
+                    <div className="w-full h-full rounded-[13px] overflow-hidden bg-white ring-1 ring-red-100">
+                      <img
+                        src={getDonorImageUrl(
+                        detailsModal.profilePhoto || DEFAULT_DONOR_PROFILE_PHOTO
+                      )}
+                        alt={detailsModal.name || "Donor"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                   </div>
 
-                  {turnstileLoading && (
-                    <p className="mt-3 text-xs text-blue-600 font-bold">
-                      যাচাই করা হচ্ছে...
-                    </p>
-                  )}
+                  {/* Functional profile-photo editor */}
+                  <DonorProfilePhotoEditor
+                    donor={{
+                      id: detailsModal.id,
+                      name: detailsModal.name,
+                      email: detailsModal.email,
+                      profilePhoto: detailsModal.profilePhoto,
+                    }}
+                  />
+                </div>
 
+                <div className="mt-3 flex items-center justify-center gap-1.5 flex-wrap">
+                  <h3 className="text-[25px] leading-tight font-extrabold text-gray-900">
+                    {detailsModal.name || "ডোনার"}
+                  </h3>
+
+                  {detailsModal.id === BUSINESS_VERIFIED_DONOR_ID ? (
+                    <img
+                      src="/golden-verify.png"
+                      alt="Business Verified"
+                      title="Business Verified"
+                      className="w-5 h-5 object-contain"
+                    />
+                  ) : detailsModal.verified === true ? (
+                    <img
+                      src="/check1.png"
+                      alt="Verified Donor"
+                      title="Verified Donor"
+                      className="w-5 h-5 object-contain"
+                    />
+                  ) : null}
+                </div>
+
+                <div className="mt-2 inline-flex items-center gap-1.5 bg-red-50 border border-red-100 text-red-600 px-3 py-1.5 rounded-full font-extrabold text-base">
+                  🩸 {detailsModal.group}
+                </div>
+              </div>
+
+              {/* Donor information — no serial numbers */}
+              <div className="mt-5 space-y-3.5 text-[17px]">
+                {detailsModal.address && (
+                  <div className="border-b border-gray-100 pb-3">
+                    <p className="text-gray-500 font-bold text-[15px] mb-0.5">
+                      ঠিকানা
+                    </p>
+                    <p className="text-gray-900 font-semibold leading-6">
+                      {detailsModal.address}
+                    </p>
+                  </div>
+                )}
+
+                {detailsModal.dob && (
+                  <div className="border-b border-gray-100 pb-3">
+                    <p className="text-gray-500 font-bold text-[15px] mb-0.5">
+                      জন্মতারিখ
+                    </p>
+                    <p className="text-gray-900 font-semibold">
+                      {detailsModal.dob}
+                    </p>
+                  </div>
+                )}
+
+                {detailsModal.disease && (
+                  <div className="border-b border-gray-100 pb-3">
+                    <p className="text-gray-500 font-bold text-[15px] mb-0.5">
+                      রোগ
+                    </p>
+                    <p className="text-gray-900 font-semibold leading-6">
+                      {detailsModal.disease}
+                    </p>
+                  </div>
+                )}
+
+                {detailsModal.allergy && (
+                  <div className="border-b border-gray-100 pb-3">
+                    <p className="text-gray-500 font-bold text-[15px] mb-0.5">
+                      অ্যালার্জি
+                    </p>
+                    <p className="text-gray-900 font-semibold leading-6">
+                      {detailsModal.allergy}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Donation history — only these two donation functions */}
+              <div className="mt-5 rounded-2xl border border-red-100 bg-red-50/50 px-4 py-4">
+                <p className="text-red-700 font-extrabold text-[18px] mb-2">
+                  রক্ত দিয়েছেন
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 leading-none min-h-[30px]">
+                  {Array.from({
+                    length: Math.min(Number(detailsModal.donationCount || 0), 50),
+                  }).map((_, index) => (
+                    <span
+                      key={index}
+                      className="text-[20px] leading-none"
+                      aria-hidden="true"
+                    >
+                      🩸
+                    </span>
+                  ))}
+
+                  {Number(detailsModal.donationCount || 0) === 0 && (
+                    <span className="text-gray-500 font-semibold text-[15px]">
+                      এখনো নিশ্চিত রক্তদানের রেকর্ড নেই
+                    </span>
+                  )}
+                </div>
+
+                {detailsModal.lastDonation && (
+                  <p className="mt-3 text-gray-700 font-semibold text-[16px]">
+                    সর্বশেষ:{" "}
+                    <span className="font-bold text-gray-900">
+                      {detailsModal.lastDonation}
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              {/* Phone + status update */}
+              <div className="mt-4">
+                {revealedPhone ? (
+                  <div className="flex flex-col gap-3">
+                    <a
+                      href={`tel:${revealedPhone}`}
+                      className="text-xl font-extrabold text-[#116cb4] tracking-widest bg-blue-50 px-4 py-3 rounded-xl border border-blue-100 w-full text-center"
+                    >
+                      {revealedPhone}
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailsModal(null);
+                        setLoginModal({
+                          isOpen: true,
+                          donorId: detailsModal.id,
+                        });
+                      }}
+                      className="bg-green-600 text-white px-4 py-3.5 rounded-xl font-bold text-[17px] hover:bg-green-700 w-full shadow-md transition-colors"
+                    >
+                      🩸 আমি রক্ত দিয়েছি — স্ট্যাটাস আপডেট
+                    </button>
+                  </div>
+                ) : !showTurnstile ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowTurnstile(false);
-                      setTurnstileLoading(false);
-                      setTurnstileKey((prev) => prev + 1);
-                    }}
-                    className="
-                      mt-3
-                      text-xs
-                      font-bold
-                      text-gray-500
-                      hover:text-red-600
-                      transition-colors
-                    "
+                    onClick={handlePhoneReveal}
+                    className="bg-[#116cb4] text-white px-6 py-3.5 rounded-xl font-bold text-[17px] hover:bg-blue-700 w-full transition-all shadow-md"
                   >
-                    বাতিল
+                    মোবাইল নম্বর দেখুন
                   </button>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
+                    <p className="text-[15px] font-bold text-gray-700 mb-3">
+                      নম্বর দেখতে আগে যাচাই করুন
+                    </p>
+
+                    <div className="flex justify-center">
+                      <Turnstile
+                        key={turnstileKey}
+                        siteKey={
+                          process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
+                        }
+                        onSuccess={handleTurnstileSuccess}
+                        onError={() => {
+                          setTurnstileLoading(false);
+                          showToast(
+                            "CAPTCHA verification ব্যর্থ হয়েছে। আবার চেষ্টা করুন।",
+                            "error"
+                          );
+                        }}
+                        onExpire={() => {
+                          setTurnstileLoading(false);
+                          showToast(
+                            "CAPTCHA-এর সময় শেষ হয়েছে। আবার যাচাই করুন।",
+                            "error"
+                          );
+                        }}
+                        options={{
+                          theme: "light",
+                          size: "normal",
+                        }}
+                      />
+                    </div>
+
+                    {turnstileLoading && (
+                      <p className="mt-3 text-sm text-blue-600 font-bold">
+                        যাচাই করা হচ্ছে...
+                      </p>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTurnstile(false);
+                        setTurnstileLoading(false);
+                        setTurnstileKey((prev) => prev + 1);
+                      }}
+                      className="mt-3 text-sm font-bold text-gray-500 hover:text-red-600 transition-colors"
+                    >
+                      বাতিল
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
