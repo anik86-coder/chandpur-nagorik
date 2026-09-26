@@ -2,14 +2,12 @@
   "name": "chandpur-nagorik",
   "version": "0.1.0",
   "private": true,
-
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
-
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",
     "@aws-sdk/client-ses": "^3.1133.0",
@@ -24,9 +22,8 @@
     "nodemailer": "^8.0.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "^0.35.4"
+    "sharp": "^0.34.5"
   },
-
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -38,7 +35,6 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-
   "pnpm": {
     "onlyBuiltDependencies": [
       "sharp"
