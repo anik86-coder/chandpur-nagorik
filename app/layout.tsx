@@ -175,6 +175,16 @@ export default function RootLayout({
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9802392928690253"
           crossOrigin="anonymous"
         />
+
+        {/* =========================
+            Tawk.to Live Chat
+        ========================= */}
+
+        <Script
+          id="tawk-to"
+          strategy="afterInteractive"
+          src="https://embed.tawk.to/6ab964c4dade22344616d68d/1k3i33838"
+        />
       </body>
     </html>
   );

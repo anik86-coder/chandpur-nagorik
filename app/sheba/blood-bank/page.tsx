@@ -17,8 +17,27 @@ const checkAvailability = (lastDonationDate: string) => {
   return diffDays >= 90;
 };
 
+// 90-day donation interval-এর মধ্যে কতদিন বাকি আছে তা দেখানোর জন্য।
+// Existing availability logic অপরিবর্তিত রাখা হয়েছে।
+const getRemainingDonationDays = (lastDonationDate: string) => {
+  if (!lastDonationDate) return 0;
+
+  const lastDate = new Date(`${lastDonationDate}T00:00:00`);
+  if (Number.isNaN(lastDate.getTime())) return 0;
+
+  const nextDonationDate = new Date(lastDate);
+  nextDonationDate.setDate(nextDonationDate.getDate() + 90);
+  nextDonationDate.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffTime = nextDonationDate.getTime() - today.getTime();
+
+  return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+};
+
 const bloodGroups = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
-const BUSINESS_VERIFIED_DONOR_ID = "95164";
 const DEFAULT_DONOR_PROFILE_PHOTO = "/profile/anik-pic.svg";
 
 // CloudFront is used only for donor profile images.
@@ -65,6 +84,8 @@ const toPublicDonor = (donorDoc: DocumentSnapshot) => {
     profilePhoto: data.profilePhoto || data.photoURL || DEFAULT_DONOR_PROFILE_PHOTO,
     verified: data.verified === true,
     verifiedAt: data.verifiedAt || "",
+    businessVerified: data.businessVerified === true,
+    businessVerifiedAt: data.businessVerifiedAt || "",
     createdAt: data.createdAt || "",
   };
 };
@@ -96,6 +117,40 @@ const sortDonorsByAvailability = (donorList: any[]) => {
 
 // [নোট]: টেস্ট করার জন্য লিমিট ২ করে দেওয়া হয়েছে, পরে আপনি এটি ১০০ করে দিতে পারেন
 const DONORS_PER_PAGE = 25;
+
+const getBloodBankUrlState = () => {
+  if (typeof window === "undefined") {
+    return { group: null as string | null, page: 1 };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const group = params.get("group");
+  const parsedPage = Number(params.get("page") || "1");
+  const page = Number.isFinite(parsedPage) && parsedPage > 0
+    ? Math.floor(parsedPage)
+    : 1;
+
+  return {
+    group: bloodGroups.includes(group || "") ? group : null,
+    page,
+  };
+};
+
+const updateBloodBankUrl = (group: string | null, page = 1) => {
+  if (typeof window === "undefined") return;
+
+  const url = new URL(window.location.href);
+
+  if (group) {
+    url.searchParams.set("group", group);
+    url.searchParams.set("page", String(Math.max(1, page)));
+  } else {
+    url.searchParams.delete("group");
+    url.searchParams.delete("page");
+  }
+
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+};
 
 export default function BloodBankPage() {
   const router = useRouter();
@@ -183,6 +238,7 @@ export default function BloodBankPage() {
       setHasNextPage(startIndex + DONORS_PER_PAGE < allGroupDonors.length);
       setCurrentPage(pageNumber);
       setMaxVisitedPage(prev => Math.max(prev, pageNumber));
+      updateBloodBankUrl(selectedGroup, pageNumber);
       window.scrollTo({ top: 400, behavior: "smooth" });
     } catch (error) {
       if (requestId !== requestIdRef.current) return;
@@ -311,7 +367,7 @@ export default function BloodBankPage() {
     }
   };
 
-  const handleGroupSelect = async (bg: string) => {
+  const handleGroupSelect = async (bg: string, requestedPage = 1) => {
     const requestId = ++requestIdRef.current;
     setSelectedGroup(bg);
     setSearchTerm("");
@@ -353,13 +409,26 @@ export default function BloodBankPage() {
 
       setAllGroupDonors(sortedDonors);
       setTotalDonors(sortedDonors.length);
-      setTotalPages(Math.ceil(sortedDonors.length / DONORS_PER_PAGE));
 
-      const firstPage = sortedDonors.slice(0, DONORS_PER_PAGE);
-      setDonors(firstPage);
-      setHasNextPage(sortedDonors.length > DONORS_PER_PAGE);
-      setCurrentPage(1);
-      setMaxVisitedPage(1);
+      const calculatedTotalPages = Math.ceil(
+        sortedDonors.length / DONORS_PER_PAGE
+      );
+      setTotalPages(calculatedTotalPages);
+
+      const safePage = calculatedTotalPages > 0
+        ? Math.min(Math.max(1, requestedPage), calculatedTotalPages)
+        : 1;
+      const startIndex = (safePage - 1) * DONORS_PER_PAGE;
+      const pageDonors = sortedDonors.slice(
+        startIndex,
+        startIndex + DONORS_PER_PAGE
+      );
+
+      setDonors(pageDonors);
+      setHasNextPage(startIndex + DONORS_PER_PAGE < sortedDonors.length);
+      setCurrentPage(safePage);
+      setMaxVisitedPage(safePage);
+      updateBloodBankUrl(bg, safePage);
     } catch (error) {
       if (requestId !== requestIdRef.current) return;
 
@@ -377,6 +446,14 @@ export default function BloodBankPage() {
       }
     }
   };
+
+  useEffect(() => {
+    const { group, page } = getBloodBankUrlState();
+
+    if (group) {
+      handleGroupSelect(group, page);
+    }
+  }, []);
 
   const handleSearch = async () => {
     const term = searchTerm.trim().toLowerCase();
@@ -920,7 +997,7 @@ export default function BloodBankPage() {
                                     {donor.name}
                                   </h4>
 
-                                  {donor.id === BUSINESS_VERIFIED_DONOR_ID ? (
+                                  {donor.businessVerified === true ? (
                                     <span
                                       className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
                                       onMouseEnter={() =>
@@ -1084,7 +1161,7 @@ export default function BloodBankPage() {
                                 >
                                   {isAvailable
                                     ? "✅ রক্ত দিতে প্রস্তুত"
-                                    : "⏳ এখন পারবেন না"}
+                                    : `⏳ আর ${String(getRemainingDonationDays(donor.lastDonation)).replace(/\d/g, (digit) => "০১২৩৪৫৬৭৮৯"[Number(digit)])} দিন পর রক্ত দিতে পারবেন`}
                                 </span>
                               </div>
                             </div>
@@ -1133,11 +1210,11 @@ export default function BloodBankPage() {
                               <button
                                 key={page}
                                 onClick={() => handlePageChange(page)}
-                                disabled={page > maxVisitedPage || isPageLoading}
+                                disabled={isPageLoading}
                                 className={`min-w-10 px-3 py-2 rounded-lg font-bold text-sm border transition-all ${
                                   currentPage === page
                                     ? "bg-red-600 text-white border-red-600 shadow-md"
-                                    : page > maxVisitedPage
+                                    : isPageLoading
                                       ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                                       : "bg-white text-gray-700 border-gray-200 hover:bg-red-50 hover:text-red-600"
                                 }`}
@@ -1169,11 +1246,11 @@ export default function BloodBankPage() {
                                 <button
                                   key={page}
                                   onClick={() => handlePageChange(page)}
-                                  disabled={page > maxVisitedPage || isPageLoading}
+                                  disabled={isPageLoading}
                                   className={`min-w-10 px-3 py-2 rounded-lg font-bold text-sm border transition-all ${
                                     currentPage === page
                                       ? "bg-red-600 text-white border-red-600 shadow-md"
-                                      : page > maxVisitedPage
+                                      : isPageLoading
                                         ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                                         : "bg-white text-gray-700 border-gray-200 hover:bg-red-50 hover:text-red-600"
                                   }`}
@@ -1261,7 +1338,7 @@ export default function BloodBankPage() {
                     {detailsModal.name || "ডোনার"}
                   </h3>
 
-                  {detailsModal.id === BUSINESS_VERIFIED_DONOR_ID ? (
+                  {detailsModal.businessVerified === true ? (
                     <img
                       src="/golden-verify.png"
                       alt="Business Verified"
@@ -1459,15 +1536,15 @@ export default function BloodBankPage() {
       )}
 
       {showScrollTop && (
-        <button
-          type="button"
-          onClick={scrollToTop}
-          className="fixed bottom-5 right-5 z-[120] w-12 h-12 rounded-full bg-red-500/55 text-red-700 border border-red-200/60 backdrop-blur-md shadow-[0_8px_30px_rgba(239,68,68,0.22)] flex items-center justify-center text-xl font-bold hover:bg-red-500/70 hover:scale-105 active:scale-90 transition-all duration-200"
-          aria-label="উপরে যান"
-          title="উপরে যান"
-        >
-          ↑
-        </button>
+        <button 
+  type="button" 
+  onClick={scrollToTop} 
+  className="fixed bottom-10 right-[400px] z-[10] w-12 h-12 rounded-full bg-red-500/55 text-red-700 border border-red-200/60 backdrop-blur-md shadow-[0_8px_30px_rgba(239,68,68,0.22)] flex items-center justify-center text-xl font-bold hover:bg-red-500/70 hover:scale-105 active:scale-90 transition-all duration-200" 
+  aria-label="উপরে যান" 
+  title="উপরে যান" 
+> 
+  ↑ 
+</button>
       )}
 
       {loginModal.isOpen && (
