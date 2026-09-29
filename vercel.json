@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/firestore-cleanup",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

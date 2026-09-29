@@ -18,6 +18,13 @@ const BUCKET_NAME =
 const OTP_SECRET =
   process.env.PROFILE_PHOTO_OTP_SECRET;
 
+// --------------------------------------------------
+// MAX PROFILE PHOTO SIZE
+// --------------------------------------------------
+
+const MAX_PROFILE_PHOTO_SIZE_BYTES =
+  5 * 1024 * 1024; // 5 MB
+
 if (!BUCKET_NAME) {
   console.warn(
     "AWS_S3_MEDIA_BUCKET_NAME is missing."
@@ -143,6 +150,28 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // --------------------------------------------------
+    // MAX FILE SIZE — 5 MB
+    // --------------------------------------------------
+
+    if (
+      file.size >
+      MAX_PROFILE_PHOTO_SIZE_BYTES
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "প্রোফাইল ছবির সর্বোচ্চ সাইজ ৫ MB হতে পারবে। ৫ MB-এর কম বা সমান ছবি নির্বাচন করুন।",
+        },
+        { status: 413 }
+      );
+    }
+
+    // --------------------------------------------------
+    // IMAGE TYPE CHECK
+    // --------------------------------------------------
 
     if (!file.type.startsWith("image/")) {
       return NextResponse.json(
@@ -318,6 +347,26 @@ export async function POST(
     }
 
     // --------------------------------------------------
+    // CURRENT PROFILE PHOTO CHECK
+    // --------------------------------------------------
+
+    const currentProfilePhoto =
+      String(
+        donorData.profilePhoto || ""
+      ).trim();
+
+    const currentProfilePhotoKey =
+      String(
+        donorData.profilePhotoKey || ""
+      ).trim();
+
+    const hasCurrentProfilePhoto =
+      Boolean(
+        currentProfilePhoto ||
+        currentProfilePhotoKey
+      );
+
+    // --------------------------------------------------
     // 15-DAY LOCK
     // --------------------------------------------------
 
@@ -327,7 +376,48 @@ export async function POST(
           0
       );
 
+    /*
+     * যদি বর্তমানে donor-এর কোনো profile photo না থাকে,
+     * তাহলে পুরনো/stale lock upload আটকাবে না।
+     *
+     * send-otp route-এও একই logic আছে।
+     *
+     * এতে deleted/empty profile-এর পুরনো lock
+     * automatically clear হয়ে যাবে।
+     */
+
     if (
+      !hasCurrentProfilePhoto &&
+      lockedUntil > 0
+    ) {
+      try {
+        await donorRef.update({
+          profilePhotoLockedUntil: 0,
+        });
+
+        console.log(
+          "PROFILE PHOTO STALE LOCK CLEARED:",
+          {
+            donorId,
+            previousLockedUntil:
+              lockedUntil,
+          }
+        );
+      } catch (clearLockError) {
+        console.error(
+          "Profile photo stale lock clear error:",
+          clearLockError
+        );
+      }
+    }
+
+    /*
+     * বর্তমানে profile photo থাকলে
+     * 15-day lock আগের মতো enforce হবে।
+     */
+
+    if (
+      hasCurrentProfilePhoto &&
       lockedUntil > 0 &&
       Date.now() < lockedUntil
     ) {
@@ -395,6 +485,24 @@ export async function POST(
         await file.arrayBuffer()
       );
 
+    // --------------------------------------------------
+    // SECONDARY 5 MB CHECK
+    // --------------------------------------------------
+
+    if (
+      originalBuffer.length >
+      MAX_PROFILE_PHOTO_SIZE_BYTES
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "প্রোফাইল ছবির সর্বোচ্চ সাইজ ৫ MB হতে পারবে।",
+        },
+        { status: 413 }
+      );
+    }
+
     if (
       !originalBuffer.length
     ) {
@@ -411,7 +519,7 @@ export async function POST(
     // --------------------------------------------------
     // IMAGE PROCESSING
     //
-    // No MB limit
+    // Maximum original file size: 5 MB
     // Auto rotate
     // Square 1:1
     // 800x800

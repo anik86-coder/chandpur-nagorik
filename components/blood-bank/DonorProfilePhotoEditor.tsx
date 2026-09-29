@@ -51,6 +51,12 @@ export default function DonorProfilePhotoEditor({
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
+  const [showCloseWarning, setShowCloseWarning] =
+    useState(false);
+
+  const [uploadResult, setUploadResult] =
+    useState<"idle" | "loading" | "success">("idle");
+
   const [resendCountdown, setResendCountdown] =
     useState(0);
 
@@ -102,6 +108,8 @@ export default function DonorProfilePhotoEditor({
 
     setError("");
     setSuccessMessage("");
+    setShowCloseWarning(false);
+    setUploadResult("idle");
 
     setResendCountdown(0);
 
@@ -117,22 +125,8 @@ export default function DonorProfilePhotoEditor({
      CLOSE EDITOR
   -------------------------------- */
 
-  const handleClose = () => {
-    if (isSubmitting) return;
-
-    // Do not close immediately after OTP verification.
-    // Ask for confirmation so an accidental click does not
-    // waste the already-sent OTP.
-    if (step !== "email") {
-      const confirmed = window.confirm(
-        "আপনি কি Profile Photo পরিবর্তনের প্রক্রিয়া বন্ধ করতে চান?\n\nবন্ধ করলে বর্তমান OTP/verification session আর ব্যবহার করা যাবে না।"
-      );
-
-      if (!confirmed) return;
-    }
-
+  const resetEditorState = () => {
     setIsOpen(false);
-
     setStep("email");
 
     setEmail("");
@@ -143,6 +137,8 @@ export default function DonorProfilePhotoEditor({
 
     setError("");
     setSuccessMessage("");
+    setShowCloseWarning(false);
+    setUploadResult("idle");
 
     setResendCountdown(0);
 
@@ -150,6 +146,27 @@ export default function DonorProfilePhotoEditor({
       donor.profilePhoto ||
         "/profile/anik-pic.svg"
     );
+  };
+
+  const handleClose = () => {
+    if (isSubmitting) return;
+
+    if (step === "email") {
+      resetEditorState();
+      return;
+    }
+
+    setShowCloseWarning(true);
+  };
+
+  const handleCancelCloseWarning = () => {
+    if (isSubmitting) return;
+    setShowCloseWarning(false);
+  };
+
+  const handleConfirmClose = () => {
+    if (isSubmitting) return;
+    resetEditorState();
   };
 
   /* --------------------------------
@@ -405,6 +422,30 @@ export default function DonorProfilePhotoEditor({
       return;
     }
 
+    // Maximum profile photo size: 5 MB
+    const MAX_PROFILE_PHOTO_SIZE =
+      5 * 1024 * 1024;
+
+    if (
+      file.size >
+      MAX_PROFILE_PHOTO_SIZE
+    ) {
+      setError(
+        "প্রোফাইল ছবির সর্বোচ্চ সাইজ ৫ MB হতে পারবে। ৫ MB-এর কম বা সমান ছবি নির্বাচন করুন।"
+      );
+
+      setSelectedFile(null);
+
+      setPreviewUrl(
+        donor.profilePhoto ||
+          "/profile/anik-pic.svg"
+      );
+
+      e.target.value = "";
+
+      return;
+    }
+
     setSelectedFile(file);
 
     const objectUrl =
@@ -444,6 +485,7 @@ export default function DonorProfilePhotoEditor({
     setError("");
 
     setSuccessMessage("");
+    setUploadResult("loading");
 
     try {
       const formData =
@@ -492,18 +534,13 @@ export default function DonorProfilePhotoEditor({
 
       setSuccessMessage(
         data?.message ||
-          "প্রোফাইল ছবির পরিবর্তনের অনুরোধ সফলভাবে পাঠানো হয়েছে।"
+          `User ID ${donor.id}-এর profile picture update-এর জন্য আপনার request পাঠানো হয়েছে। Admin approval-এর পর নতুন ছবি আপনার profile-এ দেখা যাবে।`
       );
 
+      setUploadResult("success");
       setUploadToken("");
-
       setVerificationId("");
-
       setSelectedFile(null);
-
-      setTimeout(() => {
-        handleClose();
-      }, 1800);
     } catch (error) {
       console.error(
         "Profile photo request error:",
@@ -515,6 +552,7 @@ export default function DonorProfilePhotoEditor({
           ? error.message
           : "ছবির পরিবর্তনের অনুরোধ পাঠাতে সমস্যা হয়েছে।"
       );
+      setUploadResult("idle");
     } finally {
       setIsSubmitting(false);
     }
@@ -576,6 +614,57 @@ export default function DonorProfilePhotoEditor({
       </button>
 
       {/* ==========================================
+          CLOSE WARNING
+      ========================================== */}
+
+      {isOpen && showCloseWarning && (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCancelCloseWarning();
+            }
+          }}
+        >
+          <div className="w-full max-w-[370px] rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-3xl shadow-sm">
+              ⚠
+            </div>
+
+            <h3 className="mt-4 text-lg font-extrabold text-gray-900">
+              এই প্রক্রিয়াটি বন্ধ করবেন?
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              আপনি Profile Photo update-এর প্রক্রিয়ার মাঝখানে আছেন।
+              এখন বন্ধ করলে বর্তমান OTP verification এবং upload session
+              আর ব্যবহার করা যাবে না।
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={handleCancelCloseWarning}
+                disabled={isSubmitting}
+                className="h-11 rounded-xl border border-gray-200 bg-white font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+              >
+                ফিরে যান
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmClose}
+                disabled={isSubmitting}
+                className="h-11 rounded-xl bg-gray-900 font-bold text-white shadow-md transition hover:bg-gray-800 disabled:opacity-50"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
           MODAL
       ========================================== */}
 
@@ -617,6 +706,7 @@ export default function DonorProfilePhotoEditor({
           >
             {/* HEADER */}
 
+            {uploadResult === "idle" && (
             <div
               className="
                 flex
@@ -666,11 +756,13 @@ export default function DonorProfilePhotoEditor({
                 ×
               </button>
             </div>
+            )}
 
             {/* ======================================
                 STEP INDICATOR
             ====================================== */}
 
+            {uploadResult === "idle" && (
             <div className="px-5 pt-4">
               <div className="flex items-center gap-2">
 
@@ -724,12 +816,13 @@ export default function DonorProfilePhotoEditor({
                 <span>PHOTO</span>
               </div>
             </div>
+            )}
 
             {/* ======================================
                 BODY
             ====================================== */}
 
-            <div className="px-5 py-5">
+            <div className={uploadResult === "idle" ? "px-5 py-5" : "px-5 py-2"}>
 
               {/* ====================================
                   STEP 1 — EMAIL
@@ -1050,6 +1143,52 @@ export default function DonorProfilePhotoEditor({
 
               {step === "photo" && (
                 <div>
+                  {uploadResult === "loading" ? (
+                    <div className="flex min-h-[270px] flex-col items-center justify-center px-3 py-6 text-center">
+                      <div className="relative flex h-20 w-20 items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+                        <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-red-500 border-r-red-300" />
+                        <div className="h-10 w-10 animate-pulse rounded-full bg-red-50" />
+                      </div>
+
+                      <h3 className="mt-5 text-lg font-extrabold text-gray-900">
+                        Request পাঠানো হচ্ছে
+                      </h3>
+
+                      <p className="mt-2 max-w-[280px] text-xs leading-5 text-gray-500">
+                        আপনার profile picture নিরাপদভাবে submit করা হচ্ছে। একটু অপেক্ষা করুন...
+                      </p>
+                    </div>
+                  ) : uploadResult === "success" ? (
+                    <div className="flex min-h-[270px] flex-col items-center justify-center px-3 py-6 text-center">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500 text-5xl text-white shadow-lg">
+                        ✓
+                      </div>
+
+                      <h3 className="mt-5 text-lg font-extrabold text-gray-900">
+                        Successfully Submitted
+                      </h3>
+
+                      <p className="mt-3 max-w-[310px] text-sm font-semibold leading-6 text-gray-600">
+                        User ID <span className="font-extrabold text-gray-900">{donor.id}</span>-এর
+                        profile picture update-এর জন্য আপনার request পাঠানো হয়েছে।
+                      </p>
+
+                      <p className="mt-2 max-w-[300px] text-xs leading-5 text-gray-500">
+                        Admin approval-এর পর নতুন profile picture আপনার profile-এ দেখা যাবে।
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={resetEditorState}
+                        className="mt-5 h-11 w-full max-w-[290px] rounded-xl bg-gray-900 font-bold text-white shadow-md transition hover:bg-gray-800"
+                      >
+                        OK
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+
 
                   {/* শুধু একবার verification status */}
 
@@ -1182,7 +1321,7 @@ export default function DonorProfilePhotoEditor({
                       </li>
 
                       <li>
-                        • কোনো MB limit নেই
+                        • সর্বোচ্চ ৫ MB ছবি
                       </li>
 
                       <li>
@@ -1245,16 +1384,10 @@ export default function DonorProfilePhotoEditor({
 
                   </div>
 
-                  {/* UPLOAD SUCCESS */}
 
-                  {successMessage && (
-                    <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-3 py-3 text-center">
-                      <p className="text-sm font-bold leading-5 text-green-700">
-                        {successMessage}
-                      </p>
-                    </div>
+
+                    </>
                   )}
-
                 </div>
               )}
 

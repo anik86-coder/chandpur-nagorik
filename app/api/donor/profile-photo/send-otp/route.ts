@@ -117,6 +117,26 @@ export async function POST(request: NextRequest) {
     }
 
     // --------------------------------------------------
+    // CURRENT PROFILE PHOTO CHECK
+    // --------------------------------------------------
+
+    const currentProfilePhoto =
+      String(
+        donorData.profilePhoto || ""
+      ).trim();
+
+    const currentProfilePhotoKey =
+      String(
+        donorData.profilePhotoKey || ""
+      ).trim();
+
+    const hasCurrentProfilePhoto =
+      Boolean(
+        currentProfilePhoto ||
+        currentProfilePhotoKey
+      );
+
+    // --------------------------------------------------
     // 15-DAY LOCK
     // --------------------------------------------------
 
@@ -124,13 +144,54 @@ export async function POST(request: NextRequest) {
       donorData.profilePhotoLockedUntil || 0
     );
 
+    /*
+     * যদি donor-এর বর্তমানে কোনো profile photo না থাকে,
+     * তাহলে পুরনো/stale lock দিয়ে OTP block করা হবে না।
+     *
+     * এতে profilePhotoStatus = "deleted"
+     * এবং profilePhoto/profilePhotoKey empty থাকলে
+     * পুরনো lock automatically clear হয়ে যাবে।
+     */
     if (
+      !hasCurrentProfilePhoto &&
+      lockedUntil > 0
+    ) {
+      try {
+        await donorRef.update({
+          profilePhotoLockedUntil: 0,
+        });
+      } catch (clearLockError) {
+        console.error(
+          "Profile photo stale lock clear error:",
+          clearLockError
+        );
+      }
+    }
+
+    /*
+     * বর্তমান profile photo থাকলে তবেই 15-day lock enforce হবে।
+     */
+    if (
+      hasCurrentProfilePhoto &&
       lockedUntil > 0 &&
       Date.now() < lockedUntil
     ) {
       const remainingDays = Math.ceil(
         (lockedUntil - Date.now()) /
           (1000 * 60 * 60 * 24)
+      );
+
+      console.log(
+        "PROFILE PHOTO LOCK:",
+        {
+          donorId,
+          lockedUntil,
+          remainingDays,
+          lockedUntilISO:
+            new Date(
+              lockedUntil
+            ).toISOString(),
+        }
       );
 
       return NextResponse.json(
@@ -149,7 +210,9 @@ export async function POST(request: NextRequest) {
 
     const registeredEmail =
       normalizeEmail(
-        String(privateData.email || "")
+        String(
+          privateData.email || ""
+        )
       );
 
     if (
@@ -173,8 +236,16 @@ export async function POST(request: NextRequest) {
     const pendingSnap =
       await adminDb
         .collection("donorPhotoRequests")
-        .where("donorId", "==", donorId)
-        .where("status", "==", "pending")
+        .where(
+          "donorId",
+          "==",
+          donorId
+        )
+        .where(
+          "status",
+          "==",
+          "pending"
+        )
         .limit(1)
         .get();
 
@@ -190,7 +261,7 @@ export async function POST(request: NextRequest) {
     }
 
     // --------------------------------------------------
-    // PREVIOUS OTP SESSION
+    // CREATE OTP SESSION
     // --------------------------------------------------
 
     const sessionRef = adminDb
@@ -207,7 +278,7 @@ export async function POST(request: NextRequest) {
     const otpHash = hashValue(otp);
 
     // --------------------------------------------------
-    // EMAIL
+    // SEND EMAIL
     // --------------------------------------------------
 
     await sendEmail({
@@ -280,6 +351,7 @@ ${otp}
       attempts: 0,
 
       createdAt: now,
+
       expiresAt:
         now + OTP_VALIDITY_MS,
 
@@ -288,8 +360,13 @@ ${otp}
       verifiedAt: null,
 
       uploadTokenHash: null,
+
       uploadTokenExpiresAt: null,
     });
+
+    // --------------------------------------------------
+    // SUCCESS
+    // --------------------------------------------------
 
     return NextResponse.json(
       {

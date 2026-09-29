@@ -216,6 +216,7 @@ export async function POST(
             MAX_OTP_ATTEMPTS
               ? "OTP verification blocked। নতুন OTP নিন।"
               : "OTP সঠিক নয়। আবার চেষ্টা করুন।",
+
           remainingAttempts:
             Math.max(
               0,
@@ -252,6 +253,10 @@ export async function POST(
       // OTP hash remove করা হচ্ছে
       otpHash: null,
     });
+
+    // --------------------------------------------------
+    // SUCCESS
+    // --------------------------------------------------
 
     return NextResponse.json(
       {
