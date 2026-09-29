@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // Cleanup policy:
 //
 // 1. donorPhotoOtpSessions
-//    → 24 hours পুরোনো session delete
+//    → expiresAt পার হয়ে গেলে session delete
 //
 // 2. donorPhotoRequests
 //    → approved / rejected এবং 30 দিনের পুরোনো হলে delete
@@ -25,9 +25,6 @@ export const dynamic = "force-dynamic";
 // IMPORTANT:
 // donors / donorPrivate এই cleanup কখনো touch করবে না.
 // ============================================================
-
-const OTP_SESSION_RETENTION_MS =
-  24 * 60 * 60 * 1000;
 
 const PHOTO_REQUEST_RETENTION_MS =
   30 * 24 * 60 * 60 * 1000;
@@ -75,18 +72,25 @@ async function deleteDocsInBatches(
 // ============================================================
 // CLEANUP DONOR PHOTO OTP SESSIONS
 // ============================================================
+//
+// expiresAt Firestore-এ int64 / number হিসেবে রাখা আছে।
+// তাই current Unix timestamp-এর সঙ্গে সরাসরি compare করা হবে.
+//
+// expiresAt <= এখন
+// → session expired
+// → automatic delete
+//
+// ============================================================
 
 async function cleanupDonorPhotoOtpSessions() {
-  const cutoffTime =
-    Date.now() -
-    OTP_SESSION_RETENTION_MS;
+  const currentTime = Date.now();
 
   const snapshot = await adminDb
     .collection("donorPhotoOtpSessions")
     .where(
       "expiresAt",
       "<=",
-      cutoffTime
+      currentTime
     )
     .get();
 
