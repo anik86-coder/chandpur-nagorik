@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
@@ -5,6 +6,7 @@ import "./globals.css";
 
 import Header from "../components/header";
 import Footer from "../components/footer";
+import SupportWidget from "../components/SupportWidget";
 
 /* Fonts */
 
@@ -27,9 +29,7 @@ const inter = Inter({
   display: "swap",
 });
 
-/* =========================
-   SEO Metadata
-========================= */
+/* SEO Metadata */
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://chandpurnagorik.com"),
@@ -92,7 +92,7 @@ export const metadata: Metadata = {
     siteName: "Chandpur Nagorik",
     title: "চাঁদপুর নাগরিক | Chandpur Nagorik",
     description:
-      "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় নাগরিক সেবা, স্বাস্থ্যসেবা, হাসপাতাল, ডাক্তার, ডায়াগনস্টিক সেন্টার, রক্তদাতা ও স্থানীয় তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম.",
+      "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় নাগরিক সেবা, স্বাস্থ্যসেবা, হাসপাতাল, ডাক্তার, ডায়াগনস্টিক সেন্টার, রক্তদাতা ও স্থানীয় তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম।",
   },
 
   twitter: {
@@ -103,27 +103,20 @@ export const metadata: Metadata = {
   },
 };
 
-/* =========================
-   Organization Structured Data
-========================= */
+/* Organization Structured Data */
 
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-
   name: "Chandpur Nagorik",
   alternateName: "চাঁদপুর নাগরিক",
-
   url: "https://chandpurnagorik.com",
-
   description:
     "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় নাগরিক সেবা ও তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম।",
-
   areaServed: {
     "@type": "City",
     name: "Chandpur",
   },
-
   address: {
     "@type": "PostalAddress",
     addressLocality: "Chandpur",
@@ -132,21 +125,19 @@ const organizationSchema = {
   },
 };
 
+/* Root Layout */
+
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html
       lang="bn"
       className={`${inter.variable} ${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        {/* =========================
-            Organization Structured Data
-        ========================= */}
-
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -155,35 +146,22 @@ export default function RootLayout({
         />
       </head>
 
-      <body className="min-h-screen flex flex-col">
+      <body className="flex min-h-screen flex-col">
         <Header />
 
         <main className="flex-1">{children}</main>
 
         <Footer />
 
-        {/* =========================
-            Google AdSense
-            Publisher ID:
-            ca-pub-9802392928690253
-        ========================= */}
+        <SupportWidget />
 
+        {/* Google AdSense */}
         <Script
           id="google-adsense"
           async
           strategy="afterInteractive"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9802392928690253"
           crossOrigin="anonymous"
-        />
-
-        {/* =========================
-            Tawk.to Live Chat
-        ========================= */}
-
-        <Script
-          id="tawk-to"
-          strategy="afterInteractive"
-          src="https://embed.tawk.to/6ab964c4dade22344616d68d/1k3i33838"
         />
       </body>
     </html>

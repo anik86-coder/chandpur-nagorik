@@ -133,10 +133,11 @@ const getBloodBankUrlState = () => {
   return {
     group: bloodGroups.includes(group || "") ? group : null,
     page,
+    donorId: params.get("donor"),
   };
 };
 
-const updateBloodBankUrl = (group: string | null, page = 1) => {
+const updateBloodBankUrl = (group: string | null, page = 1, donorId: string | null = null) => {
   if (typeof window === "undefined") return;
 
   const url = new URL(window.location.href);
@@ -147,6 +148,12 @@ const updateBloodBankUrl = (group: string | null, page = 1) => {
   } else {
     url.searchParams.delete("group");
     url.searchParams.delete("page");
+  }
+
+  if (donorId) {
+    url.searchParams.set("donor", donorId);
+  } else {
+    url.searchParams.delete("donor");
   }
 
   window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
@@ -367,7 +374,11 @@ export default function BloodBankPage() {
     }
   };
 
-  const handleGroupSelect = async (bg: string, requestedPage = 1) => {
+  const handleGroupSelect = async (
+    bg: string,
+    requestedPage = 1,
+    requestedDonorId: string | null = null
+  ) => {
     const requestId = ++requestIdRef.current;
     setSelectedGroup(bg);
     setSearchTerm("");
@@ -428,7 +439,22 @@ export default function BloodBankPage() {
       setHasNextPage(startIndex + DONORS_PER_PAGE < sortedDonors.length);
       setCurrentPage(safePage);
       setMaxVisitedPage(safePage);
-      updateBloodBankUrl(bg, safePage);
+      updateBloodBankUrl(bg, safePage, requestedDonorId);
+
+      // Shared donor URLs open the matching donor's details modal automatically.
+      if (requestedDonorId) {
+        const sharedDonor = sortedDonors.find((donor) => donor.id === requestedDonorId);
+        if (sharedDonor) {
+          setDetailsModal(sharedDonor);
+          setRevealedPhone(null);
+        } else {
+          setDetailsModal(null);
+          showToast("এই ডোনারের প্রোফাইল পাওয়া যায়নি অথবা আর প্রকাশিত নেই।", "error");
+          updateBloodBankUrl(bg, safePage, null);
+        }
+      } else {
+        setDetailsModal(null);
+      }
     } catch (error) {
       if (requestId !== requestIdRef.current) return;
 
@@ -448,10 +474,13 @@ export default function BloodBankPage() {
   };
 
   useEffect(() => {
-    const { group, page } = getBloodBankUrlState();
+    const { group, page, donorId } = getBloodBankUrlState();
 
     if (group) {
-      handleGroupSelect(group, page);
+      handleGroupSelect(group, page, donorId);
+    } else if (donorId) {
+      // A donor link includes its blood group so the public record can be loaded.
+      updateBloodBankUrl(null, 1, null);
     }
   }, []);
 
@@ -1168,24 +1197,17 @@ export default function BloodBankPage() {
 
                             {/* Details button */}
                             <div className="text-right shrink-0">
-                              {isAvailable ? (
-                                <button
-                                  onClick={() => {
-                                    setDetailsModal(donor);
-                                    setRevealedPhone(null);
-                                  }}
-                                  className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                >
-                                  বিস্তারিত দেখুন
-                                </button>
-                              ) : (
-                                <button
-                                  disabled
-                                  className="bg-gray-100 text-gray-400 border border-gray-200 text-sm px-4 py-2 rounded-lg font-bold cursor-not-allowed"
-                                >
-                                  অ্যাভেইলেবল নয়
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDetailsModal(donor);
+                                  setRevealedPhone(null);
+                                  updateBloodBankUrl(selectedGroup, currentPage, donor.id);
+                                }}
+                                className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                              >
+                                প্রোফাইল দেখুন
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1298,7 +1320,11 @@ export default function BloodBankPage() {
             {/* Close */}
             <button
               type="button"
-              onClick={() => setDetailsModal(null)}
+              onClick={() => {
+                setDetailsModal(null);
+                setRevealedPhone(null);
+                updateBloodBankUrl(selectedGroup, currentPage, null);
+              }}
               className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 text-2xl font-bold flex items-center justify-center transition-all"
               aria-label="বন্ধ করুন"
             >
@@ -1358,6 +1384,26 @@ export default function BloodBankPage() {
                 <div className="mt-2 inline-flex items-center gap-1.5 bg-red-50 border border-red-100 text-red-600 px-3 py-1.5 rounded-full font-extrabold text-base">
                   🩸 {detailsModal.group}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const shareUrl = new URL(window.location.href);
+                    shareUrl.searchParams.set("group", detailsModal.group);
+                    shareUrl.searchParams.set("page", String(currentPage));
+                    shareUrl.searchParams.set("donor", detailsModal.id);
+                    try {
+                      await navigator.clipboard.writeText(shareUrl.toString());
+                      showToast("ডোনারের প্রোফাইল লিংক কপি হয়েছে!");
+                    } catch {
+                      updateBloodBankUrl(detailsModal.group, currentPage, detailsModal.id);
+                      showToast("প্রোফাইল লিংক তৈরি হয়েছে। এখন অ্যাড্রেস বার থেকে কপি করুন।");
+                    }
+                  }}
+                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-600 shadow-sm transition hover:bg-red-50"
+                >
+                  🔗 প্রোফাইল লিংক কপি করুন
+                </button>
               </div>
 
               {/* Donor information — no serial numbers */}
