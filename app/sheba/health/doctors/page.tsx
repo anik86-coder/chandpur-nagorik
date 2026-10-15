@@ -1,16 +1,13 @@
 "use client";
 
-
-
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 
 import { db } from "@/firebase";
-
-
 
 const DEFAULT_DEPARTMENTS = [
 
@@ -21,8 +18,6 @@ const DEFAULT_DEPARTMENTS = [
   "ডেন্টাল", "মানসিক রোগ", "ফিজিওথেরাপি", "কিডনি", "লিভার", "অন্যান্য",
 
 ];
-
-
 
 type Chamber = {
 
@@ -41,8 +36,6 @@ type Chamber = {
   slug?: string;
 
 };
-
-
 
 type DoctorRecord = {
 
@@ -94,8 +87,6 @@ type DoctorRecord = {
 
 };
 
-
-
 function getDepartment(doctor: DoctorRecord): string {
 
   if (doctor.department) return doctor.department;
@@ -140,8 +131,6 @@ function getDepartment(doctor: DoctorRecord): string {
 
 }
 
-
-
 function getChambers(doctor: DoctorRecord): Chamber[] {
 
   if (Array.isArray(doctor.chambers) && doctor.chambers.length) {
@@ -176,15 +165,11 @@ function getChambers(doctor: DoctorRecord): Chamber[] {
 
 }
 
-
-
 function getDoctorImage(doctor: DoctorRecord): string {
 
   return doctor.imageUrl || doctor.image || "/profile/anik-pic.svg";
 
 }
-
-
 
 function isExternalUrl(url: string): boolean {
 
@@ -192,11 +177,10 @@ function isExternalUrl(url: string): boolean {
 
 }
 
-
-
 export default function DoctorsPage() {
 
   const [selectedDepartment, setSelectedDepartment] = useState("সব ডাক্তার");
+
   const [departmentPreferenceLoaded, setDepartmentPreferenceLoaded] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -214,33 +198,57 @@ export default function DoctorsPage() {
   const [loadError, setLoadError] = useState("");
 
   const [verifyingDoctor, setVerifyingDoctor] = useState<string | null>(null);
+  const [verifiedTooltipPosition, setVerifiedTooltipPosition] = useState<{ doctorId: string; top: number; left: number } | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
 
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 12;
+
+  const showVerifiedTooltip = (doctorId: string, target: HTMLButtonElement) => {
+    const rect = target.getBoundingClientRect();
+    const tooltipWidth = Math.min(220, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(rect.left + rect.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - 8));
+    setVerifyingDoctor(doctorId);
+    setVerifiedTooltipPosition({ doctorId, top: rect.bottom + 8, left });
+  };
 
   // Restore the selected department after refresh, then keep it saved.
+
   useEffect(() => {
+
     try {
+
       const savedDepartment = window.localStorage.getItem("chandpur-nagorik-doctors-department");
+
       if (savedDepartment) setSelectedDepartment(savedDepartment);
+
     } catch (error) {
+
       console.error("Could not restore selected doctor department:", error);
+
     } finally {
+
       setDepartmentPreferenceLoaded(true);
+
     }
+
   }, []);
 
   useEffect(() => {
+
     if (!departmentPreferenceLoaded) return;
+
     try {
+
       window.localStorage.setItem("chandpur-nagorik-doctors-department", selectedDepartment);
+
     } catch (error) {
+
       console.error("Could not save selected doctor department:", error);
+
     }
+
   }, [selectedDepartment, departmentPreferenceLoaded]);
-
-
 
   useEffect(() => {
 
@@ -366,8 +374,6 @@ export default function DoctorsPage() {
 
   }, []);
 
-
-
   const filteredDoctors = useMemo(() => {
 
     const term = search.trim().toLocaleLowerCase();
@@ -400,9 +406,7 @@ export default function DoctorsPage() {
 
   }, [doctors, departments, selectedDepartment, search]);
 
-
-
-  // Show 15 doctor cards per page.
+  // Show 12 doctor cards per page.
 
   const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / PAGE_SIZE));
 
@@ -414,8 +418,6 @@ export default function DoctorsPage() {
 
   }, [filteredDoctors, currentPage]);
 
-
-
   // Return to the first page whenever the filter or search changes.
 
   useEffect(() => {
@@ -424,8 +426,6 @@ export default function DoctorsPage() {
 
   }, [selectedDepartment, search]);
 
-
-
   // Keep the page valid if doctors are added or removed.
 
   useEffect(() => {
@@ -433,8 +433,6 @@ export default function DoctorsPage() {
     if (currentPage > totalPages) setCurrentPage(totalPages);
 
   }, [currentPage, totalPages]);
-
-
 
   const doctorsSchema = useMemo(() => ({
 
@@ -480,8 +478,6 @@ export default function DoctorsPage() {
 
   }), [filteredDoctors]);
 
-
-
   const breadcrumbSchema = {
 
     "@context": "https://schema.org",
@@ -500,8 +496,6 @@ export default function DoctorsPage() {
 
   };
 
-
-
   return (
 
     <>
@@ -510,21 +504,19 @@ export default function DoctorsPage() {
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
 
-
-
       <main className="min-h-[calc(100vh-75px)] bg-gray-50 font-[Kalpurush] sm:min-h-[calc(100vh-85px)]">
 
         <div className="mx-auto max-w-screen-xl px-4 py-6 md:py-10">
 
-          <section className="rounded-2xl bg-[#116cb4] p-4 text-white shadow-md md:p-6" aria-labelledby="doctor-department-title">
+          <section className="rounded-2xl border-2 border-[#2b82c7] bg-[#116cb4] p-4 text-white shadow-md md:p-6" aria-labelledby="doctor-department-title">
 
-            <div className="mb-4 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 md:mb-5 md:gap-4">
+            <div className="relative mb-4 md:mb-5">
 
               <Link
 
                 href="/sheba/health"
 
-                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-2.5 py-2 text-xs font-bold text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:px-3 sm:text-sm"
+                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-white/30 bg-white/10 px-2.5 py-2 text-xs font-bold text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:px-3 sm:text-sm md:absolute md:left-0 md:top-0"
 
                 aria-label="স্বাস্থ্যসেবা পেজে ফিরে যান"
 
@@ -536,11 +528,11 @@ export default function DoctorsPage() {
 
               </Link>
 
-              <div className="min-w-0 text-center">
+              <div className="mt-3 min-w-0 text-center md:mt-0 md:px-40">
 
-                <h1 id="doctor-department-title" className="text-lg font-extrabold md:text-xl">চাঁদপুর ডাক্তার পয়েন্ট</h1>
+                <h1 id="doctor-department-title" className="text-lg font-extrabold text-white md:text-xl">চাঁদপুর ডাক্তার পয়েন্ট</h1>
 
-                <p className="mt-1 text-xs text-white/80 md:text-sm">আপনার প্রয়োজনীয় চিকিৎসা বিভাগের ডাক্তার খুঁজুন</p>
+                <p className="mt-1 text-xs text-white md:text-sm">আপনার প্রয়োজনীয় চিকিৎসা বিভাগের ডাক্তার খুঁজুন</p>
 
               </div>
 
@@ -606,8 +598,6 @@ export default function DoctorsPage() {
 
           </section>
 
-
-
           <div className="mt-6 flex items-center justify-between gap-3">
 
             <div>
@@ -630,11 +620,7 @@ export default function DoctorsPage() {
 
           </div>
 
-
-
           {loadError && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>}
-
-
 
           <section className="mt-4 md:mt-5" aria-labelledby="doctor-list-title">
 
@@ -646,7 +632,7 @@ export default function DoctorsPage() {
 
             ) : filteredDoctors.length > 0 ? (
 
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-5">
 
                 {paginatedDoctors.map((doctor) => {
 
@@ -658,11 +644,11 @@ export default function DoctorsPage() {
 
                   return (
 
-                    <article key={doctor.id} className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-3 shadow-[0_5px_22px_rgba(15,63,105,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_12px_30px_rgba(15,63,105,0.12)] sm:p-4">
+                    <article data-doctor-card key={doctor.id} className="group relative flex h-[570px] min-w-0 flex-col overflow-hidden rounded-2xl border-2 border-[#116cb4] bg-white p-3 shadow-[0_6px_20px_rgba(0,0,0,0.28)] transition-shadow duration-200 hover:border-[#116cb4] hover:shadow-[0_12px_28px_rgba(0,0,0,0.38)] sm:h-[520px] sm:p-4">
 
                       {/* Top section: photo on the left, doctor identity on the right */}
 
-                      <div className="grid grid-cols-[112px_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[140px_minmax(0,1fr)] sm:gap-4">
+                      <div className="grid shrink-0 grid-cols-[112px_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[140px_minmax(0,1fr)] sm:gap-4">
 
                         <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl border border-slate-100 bg-slate-100 shadow-sm">
 
@@ -672,11 +658,9 @@ export default function DoctorsPage() {
 
                         </div>
 
-
-
                         <div className="min-w-0 pt-0.5">
 
-                          <h3 className="min-w-0 break-words text-[15px] font-extrabold leading-6 text-slate-900 sm:text-lg sm:leading-7">
+                          <h3 className="min-w-0 line-clamp-2 break-words text-[15px] font-extrabold leading-5 text-slate-900 sm:text-lg sm:leading-6">
 
                             {name}
 
@@ -688,15 +672,24 @@ export default function DoctorsPage() {
 
                                   type="button"
 
-                                  onClick={() => setVerifyingDoctor((current) => current === doctor.id ? null : doctor.id)}
+                                  onClick={(event) => {
+                                    if (verifyingDoctor === doctor.id) {
+                                      setVerifyingDoctor(null);
+                                      setVerifiedTooltipPosition(null);
+                                    } else {
+                                      showVerifiedTooltip(doctor.id, event.currentTarget);
+                                    }
+                                  }}
 
-                                  onMouseEnter={() => setVerifyingDoctor(doctor.id)}
+                                  onMouseEnter={(event) => showVerifiedTooltip(doctor.id, event.currentTarget)}
 
-                                  onMouseLeave={() => setVerifyingDoctor((current) => current === doctor.id ? null : current)}
+                                  onMouseLeave={() => { setVerifyingDoctor(null); setVerifiedTooltipPosition(null); }}
 
-                                  onFocus={() => setVerifyingDoctor(doctor.id)}
+                                  onFocus={(event) => showVerifiedTooltip(doctor.id, event.currentTarget)}
 
-                                  onBlur={() => setVerifyingDoctor((current) => current === doctor.id ? null : current)}
+                                  onBlur={() => { setVerifyingDoctor(null); setVerifiedTooltipPosition(null); }}
+
+                                  title="চাঁদপুর নাগরিক কর্তৃক যাচাইকৃত"
 
                                   aria-label={`${name} চাঁদপুর নাগরিক কর্তৃক যাচাইকৃত`}
 
@@ -710,16 +703,16 @@ export default function DoctorsPage() {
 
                                 </button>
 
-                                {verifyingDoctor === doctor.id && (
-
-                                  <span role="status" className="absolute left-1/2 top-full z-30 mt-2 w-max max-w-[220px] -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-bold leading-4 text-white shadow-lg">
-
+                                {verifyingDoctor === doctor.id && verifiedTooltipPosition?.doctorId === doctor.id && typeof document !== "undefined" && createPortal(
+                                  <span
+                                    role="status"
+                                    className="pointer-events-none relative z-[9999] w-max max-w-[220px] rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-bold leading-4 text-white shadow-lg"
+                                    style={{ position: "fixed", top: verifiedTooltipPosition.top, left: verifiedTooltipPosition.left }}
+                                  >
                                     চাঁদপুর নাগরিক কর্তৃক যাচাইকৃত
-
                                     <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-slate-900" />
-
-                                  </span>
-
+                                  </span>,
+                                  document.body
                                 )}
 
                               </span>
@@ -728,11 +721,9 @@ export default function DoctorsPage() {
 
                           </h3>
 
-                          {doctor.specialty && <p className="mt-0.5 break-words text-sm font-bold leading-5 text-blue-700 sm:text-[15px]">{doctor.specialty}</p>}
+                          {doctor.specialty && <p className="mt-0.5 line-clamp-2 break-words text-sm font-bold leading-5 text-blue-700 sm:text-[15px]">{doctor.specialty}</p>}
 
                           {doctor.doctorId && <p className="mt-1 break-all font-mono text-[10px] text-slate-500 sm:text-xs">Doctor ID: {doctor.doctorId}</p>}
-
-
 
                           {(doctor.degrees || doctor.degree) && (
 
@@ -760,8 +751,6 @@ export default function DoctorsPage() {
 
                           )}
 
-
-
                           {doctor.designation && (
 
                             <div className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-2.5 py-1.5 shadow-sm">
@@ -778,23 +767,23 @@ export default function DoctorsPage() {
 
                       </div>
 
+                      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain pr-1">
 
-
-                      {/* Workplace and address */}
+                        {/* Workplace and address */}
 
                       {(doctor.workplace || doctor.hospital || doctor.address) && (
 
-                        <div className="mt-4 flex gap-3 rounded-xl border border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/50 p-3 sm:p-3.5">
+                        <div className="mt-2 flex gap-2 rounded-xl border border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/50 p-2 sm:p-2.5">
 
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-white text-lg shadow-sm" aria-hidden="true">🏥</span>
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-blue-100 bg-white text-sm shadow-sm" aria-hidden="true">🏥</span>
 
                           <div className="min-w-0 flex-1">
 
-                            <p className="text-[11px] font-semibold text-slate-500 sm:text-xs">বর্তমান হাসপাতাল / কর্মস্থল</p>
+                            <p className="text-[10px] font-semibold text-slate-500 sm:text-[11px]">বর্তমান হাসপাতাল / কর্মস্থল</p>
 
-                            {(doctor.workplace || doctor.hospital) && <p className="mt-0.5 break-words text-sm font-extrabold leading-6 text-slate-900 sm:text-base">{doctor.workplace || doctor.hospital}</p>}
+                            {(doctor.workplace || doctor.hospital) && <p className="mt-0.5 break-words text-xs font-extrabold leading-4 text-slate-900 sm:text-sm sm:leading-5">{doctor.workplace || doctor.hospital}</p>}
 
-                            {doctor.address && <p className="mt-1 break-words text-xs leading-5 text-slate-600 sm:text-sm">📍 {doctor.address}</p>}
+                            {doctor.address && <p className="mt-0.5 break-words text-[11px] leading-4 text-slate-600 sm:text-xs">📍 {doctor.address}</p>}
 
                           </div>
 
@@ -802,19 +791,17 @@ export default function DoctorsPage() {
 
                       )}
 
-
-
                       {/* Chambers */}
 
                       {chambers.length > 0 && (
 
-                        <div className="mt-4 border-t border-slate-100 pt-3">
+                        <div className="mt-2 border-t border-slate-100 pt-2">
 
-                          <div className="mb-2.5 flex items-center gap-2">
+                          <div className="mb-1.5 flex items-center gap-1.5">
 
-                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 text-sm" aria-hidden="true">🏥</span>
+                            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-teal-50 text-xs" aria-hidden="true">🏥</span>
 
-                            <p className="text-sm font-extrabold text-slate-700 sm:text-base">চেম্বার ও রোগী দেখার সময়</p>
+                            <p className="text-xs font-extrabold text-slate-700 sm:text-sm">চেম্বার ও রোগী দেখার সময়</p>
 
                           </div>
 
@@ -830,21 +817,21 @@ export default function DoctorsPage() {
 
                                 <>
 
-                                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-teal-100 bg-white text-base shadow-sm" aria-hidden="true">🏥</span>
+                                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-white text-sm shadow-sm" aria-hidden="true">🏥</span>
 
                                   <span className="min-w-0 flex-1">
 
                                     <span className="flex flex-wrap items-start gap-2">
 
-                                      <span className="block break-words text-sm font-extrabold leading-6 text-slate-900 sm:text-base">{chamber.name}</span>
+                                      <span className="block break-words text-xs font-extrabold leading-4 text-slate-900 sm:text-sm sm:leading-5">{chamber.name}</span>
 
                                     </span>
 
-                                    {chamber.address && <span className="mt-1 block break-words text-sm leading-5 text-slate-600">📍 {chamber.address}</span>}
+                                    {chamber.address && <span className="mt-0.5 block break-words text-[11px] leading-4 text-slate-600 sm:text-xs">📍 {chamber.address}</span>}
 
-                                    {chamber.days && <span className="mt-2 inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-bold leading-5 text-emerald-800 sm:text-sm"><span>📅</span><span>দিন: {chamber.days}</span></span>}
+                                    {chamber.days && <span className="mt-1 inline-flex max-w-full flex-wrap items-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-1 text-[10px] font-bold leading-4 text-emerald-800 sm:text-xs"><span>📅</span><span>দিন: {chamber.days}</span></span>}
 
-                                    {chamber.schedule && <span className="mt-2 block break-words text-sm font-bold leading-5 text-blue-700 sm:text-base">🕒 সময়: {chamber.schedule}</span>}
+                                    {chamber.schedule && <span className="mt-1 block break-words text-[11px] font-bold leading-4 text-blue-700 sm:text-xs">🕒 সময়: {chamber.schedule}</span>}
 
                                   </span>
 
@@ -868,13 +855,11 @@ export default function DoctorsPage() {
 
                       )}
 
-
-
                       {doctor.bio && <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{doctor.bio}</p>}
 
                       {(doctor.fee || doctor.experience || doctor.phone) && (
 
-                        <div className="mt-3 grid grid-cols-1 gap-1.5 rounded-xl bg-slate-50 p-3 text-xs text-slate-600 sm:grid-cols-2">
+                        <div className="mt-2 grid grid-cols-1 gap-1 rounded-lg bg-slate-50 p-2 text-[11px] text-slate-600 sm:grid-cols-2">
 
                           {doctor.fee && <p>💳 ভিজিট ফি: <span className="font-bold text-slate-800">{doctor.fee}</span></p>}
 
@@ -886,9 +871,9 @@ export default function DoctorsPage() {
 
                       )}
 
+                      </div>
 
-
-                      <div className="mt-auto pt-4">
+                        <div className="shrink-0 border-t border-slate-100 pt-2">
 
                         {doctor.appointmentEnabled && doctor.appointmentUrl ? (
 
@@ -896,11 +881,11 @@ export default function DoctorsPage() {
 
                             {isExternalUrl(doctor.appointmentUrl) ? (
 
-                              <a href={doctor.appointmentUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-blue-700 bg-gradient-to-r from-blue-700 to-blue-600 px-3 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:from-blue-800 hover:to-blue-700"><span>📅</span><span>অ্যাপয়েন্টমেন্ট নিন</span></a>
+                              <a href={doctor.appointmentUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-blue-700 bg-gradient-to-r from-blue-700 to-blue-600 px-3 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:from-blue-800 hover:to-blue-700"><span>📅</span><span>অ্যাপয়েন্টমেন্ট নিন</span></a>
 
                             ) : (
 
-                              <Link href={doctor.appointmentUrl} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-blue-700 bg-gradient-to-r from-blue-700 to-blue-600 px-3 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:from-blue-800 hover:to-blue-700"><span>📅</span><span>অ্যাপয়েন্টমেন্ট নিন</span></Link>
+                              <Link href={doctor.appointmentUrl} className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-blue-700 bg-gradient-to-r from-blue-700 to-blue-600 px-3 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:from-blue-800 hover:to-blue-700"><span>📅</span><span>অ্যাপয়েন্টমেন্ট নিন</span></Link>
 
                             )}
 
@@ -910,7 +895,7 @@ export default function DoctorsPage() {
 
                         ) : (
 
-                          <div className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-500"><span>📅</span><span>অ্যাপয়েন্টমেন্ট (শীঘ্রই চালু হবে)</span></div>
+                          <div className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-bold text-slate-500"><span>📅</span><span>অ্যাপয়েন্টমেন্ট (শীঘ্রই চালু হবে)</span></div>
 
                         )}
 
@@ -942,9 +927,7 @@ export default function DoctorsPage() {
 
           </section>
 
-
-
-          {/* Pagination: 15 doctors per page */}
+          {/* Pagination: 12 doctors per page */}
 
           {!loading && filteredDoctors.length > PAGE_SIZE && (
 
@@ -958,7 +941,7 @@ export default function DoctorsPage() {
 
                 disabled={currentPage === 1}
 
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
 
               >
 
@@ -1004,7 +987,7 @@ export default function DoctorsPage() {
 
                 disabled={currentPage === totalPages}
 
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
 
               >
 
@@ -1022,15 +1005,11 @@ export default function DoctorsPage() {
 
           )}
 
-
-
           <section className="mt-6 rounded-xl border border-blue-100 bg-white p-4 text-center shadow-sm">
 
             <p className="text-sm leading-6 text-gray-600"><span className="font-bold text-gray-800">নোট:</span> ডাক্তারদের তথ্য যাচাই করে নিয়মিত আপডেট করা হবে।</p>
 
           </section>
-
-
 
         </div>
 

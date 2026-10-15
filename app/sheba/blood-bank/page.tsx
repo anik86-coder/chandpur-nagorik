@@ -1181,17 +1181,19 @@ export default function BloodBankPage() {
                                 </div>
 
                                 {/* Availability */}
-                                <span
-                                  className={`inline-block mt-2 px-3 py-1.5 text-sm font-bold rounded-full ${
-                                    isAvailable
-                                      ? "bg-green-100 text-green-700 border border-green-200"
-                                      : "bg-red-100 text-red-700 border border-red-200"
-                                  }`}
-                                >
-                                  {isAvailable
-                                    ? "✅ রক্ত দিতে প্রস্তুত"
-                                    : `⏳ আর ${String(getRemainingDonationDays(donor.lastDonation)).replace(/\d/g, (digit) => "০১২৩৪৫৬৭৮৯"[Number(digit)])} দিন পর রক্ত দিতে পারবেন`}
-                                </span>
+                                
+<span
+  className={`inline-flex items-center mt-2 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-bold rounded-full whitespace-nowrap ${
+    isAvailable
+      ? "bg-green-100 text-green-700 border border-green-200"
+      : "bg-red-100 text-red-700 border border-red-200"
+  }`}
+>
+  {isAvailable
+    ? "✅ রক্ত দিতে প্রস্তুত"
+    : `⏳ আর ${String(getRemainingDonationDays(donor.lastDonation)).replace(/\d/g, (digit) => "০১২৩৪৫৬৭৮৯"[Number(digit)])} দিন পর রক্ত দিতে পারবেন`}
+</span>
+
                               </div>
                             </div>
 
