@@ -1,10 +1,22 @@
+
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "চাঁদপুর ব্লাড ব্যাংক | রক্তদাতা খুঁজুন",
+const siteUrl = "https://chandpurnagorik.com";
+const pageUrl = `${siteUrl}/sheba/blood-bank`;
 
-  description:
-    "চাঁদপুরের রক্তদাতা খুঁজুন। রক্তের গ্রুপ অনুযায়ী রক্তদাতার তালিকা, রক্তদাতা নিবন্ধন এবং জরুরি রক্তের সন্ধানে চাঁদপুর নাগরিক ব্লাড ব্যাংক।",
+const pageTitle = "চাঁদপুর ব্লাড ব্যাংক | রক্তদাতা খুঁজুন";
+
+const pageDescription =
+  "চাঁদপুরের রক্তদাতা খুঁজুন। রক্তের গ্রুপ অনুযায়ী রক্তদাতার তালিকা, রক্তদাতা নিবন্ধন এবং জরুরি রক্তের সন্ধানে চাঁদপুর নাগরিক ব্লাড ব্যাংক।";
+
+/* =========================
+   SEO Metadata
+========================= */
+
+export const metadata: Metadata = {
+  title: pageTitle,
+
+  description: pageDescription,
 
   keywords: [
     "চাঁদপুর ব্লাড ব্যাংক",
@@ -19,14 +31,14 @@ export const metadata: Metadata = {
   ],
 
   alternates: {
-    canonical: "https://chandpurnagorik.com/sheba/blood-bank",
+    canonical: pageUrl,
   },
 
   openGraph: {
-    title: "চাঁদপুর ব্লাড ব্যাংক | রক্তদাতা খুঁজুন",
+    title: pageTitle,
     description:
       "চাঁদপুরে রক্তের প্রয়োজনে রক্তদাতা খুঁজুন এবং রক্তদাতা হিসেবে নিবন্ধন করুন।",
-    url: "https://chandpurnagorik.com/sheba/blood-bank",
+    url: pageUrl,
     siteName: "চাঁদপুর নাগরিক",
     locale: "bn_BD",
     type: "website",
@@ -38,35 +50,38 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
     },
   },
 };
 
+/* =========================
+   Blood Bank Structured Data
+========================= */
+
 const bloodBankSchema = {
   "@context": "https://schema.org",
   "@type": "WebPage",
+  "@id": `${pageUrl}#webpage`,
 
   name: "চাঁদপুর ব্লাড ব্যাংক",
   alternateName: "Chandpur Blood Bank",
-
-  url: "https://chandpurnagorik.com/sheba/blood-bank",
-
-  description:
-    "চাঁদপুরের রক্তদাতা খোঁজা, রক্তদাতা নিবন্ধন এবং রক্তের গ্রুপ অনুযায়ী ডোনার তালিকার জন্য চাঁদপুর নাগরিকের ব্লাড ব্যাংক।",
+  url: pageUrl,
+  description: pageDescription,
+  inLanguage: "bn-BD",
 
   isPartOf: {
     "@type": "WebSite",
+    "@id": `${siteUrl}/#website`,
     name: "চাঁদপুর নাগরিক",
-    url: "https://chandpurnagorik.com",
+    url: `${siteUrl}/`,
   },
 
   about: {
-    "@type": "MedicalOrganization",
-    name: "চাঁদপুর ব্লাড ব্যাংক",
-    areaServed: {
-      "@type": "City",
-      name: "Chandpur",
-    },
+    "@type": "Thing",
+    name: "চাঁদপুরের রক্তদাতা ও রক্তদান",
   },
 
   breadcrumb: {
@@ -76,29 +91,42 @@ const bloodBankSchema = {
         "@type": "ListItem",
         position: 1,
         name: "চাঁদপুর নাগরিক",
-        item: "https://chandpurnagorik.com",
+        item: `${siteUrl}/`,
       },
       {
         "@type": "ListItem",
         position: 2,
+        name: "নাগরিক সেবা",
+        item: `${siteUrl}/sheba`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
         name: "ব্লাড ব্যাংক",
-        item: "https://chandpurnagorik.com/sheba/blood-bank",
+        item: pageUrl,
       },
     ],
   },
 };
 
+/* =========================
+   Blood Bank Layout
+========================= */
+
 export default function BloodBankLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(bloodBankSchema),
+          __html: JSON.stringify(bloodBankSchema).replace(
+            /</g,
+            "\\u003c"
+          ),
         }}
       />
 

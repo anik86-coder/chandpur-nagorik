@@ -1,12 +1,11 @@
+
 import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "নাগরিক সেবা | চাঁদপুর নাগরিক",
-
   description:
     "চাঁদপুর জেলার প্রয়োজনীয় নাগরিক সেবা এক জায়গায়। ব্লাড ব্যাংক, জরুরি সেবা, জেলা তথ্য, হাসপাতাল ও স্বাস্থ্যসেবা, পুলিশ ও থানা, বিদ্যুৎ অফিস, পৌরসভা ও ডিসি অফিস এবং অনুদানের তথ্য।",
-
   keywords: [
     "চাঁদপুর নাগরিক সেবা",
     "চাঁদপুর সেবা",
@@ -23,39 +22,25 @@ export const metadata: Metadata = {
     "চাঁদপুর পৌরসভা",
     "চাঁদপুর ডিসি অফিস",
   ],
-
   alternates: {
     canonical: "https://chandpurnagorik.com/sheba",
   },
-
   openGraph: {
     title: "নাগরিক সেবা | চাঁদপুর নাগরিক",
-
-    description:
-      "চাঁদপুর জেলার প্রয়োজনীয় নাগরিক সেবাগুলো এক জায়গায়।",
-
+    description: "চাঁদপুর জেলার প্রয়োজনীয় নাগরিক সেবাগুলো এক জায়গায়।",
     url: "https://chandpurnagorik.com/sheba",
-
     siteName: "চাঁদপুর নাগরিক",
-
     locale: "bn_BD",
-
     type: "website",
   },
-
   twitter: {
     card: "summary_large_image",
-
     title: "নাগরিক সেবা | চাঁদপুর নাগরিক",
-
-    description:
-      "চাঁদপুর জেলার প্রয়োজনীয় নাগরিক সেবাগুলো এক জায়গায়।",
+    description: "চাঁদপুর জেলার প্রয়োজনীয় নাগরিক সেবাগুলো এক জায়গায়।",
   },
-
   robots: {
     index: true,
     follow: true,
-
     googleBot: {
       index: true,
       follow: true,
@@ -66,70 +51,67 @@ export const metadata: Metadata = {
   },
 };
 
+const services = [
+  {
+    title: "ব্লাড ব্যাংক",
+    icon: "🩸",
+    link: "/sheba/blood-bank",
+  },
+  {
+    title: "জরুরি সেবা (৯৯৯)",
+    icon: "🚨",
+    link: "/sheba/emergency",
+  },
+  {
+    title: "অনুদান",
+    icon: "🤝",
+    link: "/donation",
+  },
+  {
+    title: "জেলা তথ্য",
+    icon: "🗺️",
+    link: "/sheba/zilla-info",
+  },
+  {
+    title: "হাসপাতাল ও স্বাস্থ্যসেবা",
+    icon: "🏥",
+    link: "/sheba/health",
+  },
+  {
+    title: "পুলিশ ও থানা",
+    icon: "🚓",
+    link: "/sheba/police",
+  },
+  {
+    title: "বিদ্যুৎ অফিস",
+    icon: "⚡",
+    link: "/sheba/electricity",
+  },
+  {
+    title: "পৌরসভা ও ডিসি অফিস",
+    icon: "🏢",
+    link: "/sheba/municipality",
+  },
+];
+
+const activeServices = [
+  "/sheba/blood-bank",
+  "/sheba/emergency",
+  "/donation",
+];
+
 export default function ServicesPage() {
-  const services = [
-    {
-      title: "ব্লাড ব্যাংক",
-      icon: "🩸",
-      link: "/sheba/blood-bank",
-    },
-    {
-      title: "হাসপাতাল ও স্বাস্থ্যসেবা",
-      icon: "🏥",
-      link: "/sheba/health",
-    },
-    {
-      title: "অনুদান",
-      icon: "🤝",
-      link: "/donation",
-    },
-    {
-      title: "জেলা তথ্য",
-      icon: "🗺️",
-      link: "/sheba/zilla-info",
-    },
-    
-    {
-      title: "পুলিশ ও থানা",
-      icon: "🚓",
-      link: "/sheba/police",
-      comingSoon: true,
-    },
-    {
-      title: "বিদ্যুৎ অফিস",
-      icon: "⚡",
-      link: "/sheba/electricity",
-      comingSoon: true,
-    },
-    {
-      title: "পৌরসভা ও ডিসি অফিস",
-      icon: "🏢",
-      link: "/sheba/municipality",
-      comingSoon: true,
-    },
-    
-    {
-      title: "জরুরি সেবা (৯৯৯)",
-      icon: "🚨",
-      link: "/sheba/emergency",
-    },
-  ];
-
   return (
-    <main className="max-w-screen-xl mx-auto px-4 py-12 font-[Kalpurush] min-h-[60vh]">
-      {/* Page Header */}
-
-      <header className="text-center mb-12 border-b border-gray-200 pb-6">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+    <main className="mx-auto min-h-[60vh] max-w-screen-xl px-4 py-12 font-[Kalpurush]">
+      <header className="mb-12 border-b border-gray-200 pb-6 text-center">
+        <h1 className="mb-3 text-3xl font-bold text-gray-900 md:text-4xl">
           নাগরিক সেবা
         </h1>
 
-        <p className="text-gray-600 text-[17px]">
+        <p className="text-[17px] text-gray-600">
           চাঁদপুরের মানুষের প্রয়োজনীয় নাগরিক সেবাগুলো এক জায়গায়।
         </p>
       </header>
-
-      {/* Services */}
 
       <section aria-labelledby="services-heading">
         <h2 id="services-heading" className="sr-only">
@@ -137,55 +119,69 @@ export default function ServicesPage() {
         </h2>
 
         <nav aria-label="চাঁদপুর নাগরিক সেবা">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 xl:grid-cols-5">
             {services.map((service) => {
-              // যেসব সেবা এখনো চালু হয়নি
-              if (service.comingSoon) {
+              const isActive = activeServices.includes(service.link);
+
+              const card = (
+                <div
+                  className={`relative flex h-[150px] flex-col items-center justify-center rounded-xl border p-5 text-center transition-all duration-300 md:h-[160px] md:p-6 ${
+                    isActive
+                      ? "border-gray-200 bg-white shadow-sm hover:-translate-y-1 hover:border-[#116cb4] hover:shadow-md"
+                      : "border-gray-300 bg-gray-100 opacity-75 grayscale-[25%] cursor-not-allowed"
+                  }`}
+                >
+                  <span
+                    className={`mb-3 block text-4xl transition-transform ${
+                      isActive ? "group-hover:scale-110" : ""
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {service.icon}
+                  </span>
+
+                  <h3
+                    className={`text-[16px] font-bold leading-tight md:text-[17px] ${
+                      isActive
+                        ? "text-gray-800 group-hover:text-[#116cb4] transition-colors"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {service.title}
+                  </h3>
+
+                  {!isActive && (
+                    
+<div className="absolute inset-0 flex items-end justify-center rounded-xl bg-white/20 pb-4">
+  <span className="rounded-full border border-gray-200 bg-white/95 px-3 py-1.5 text-xs font-bold text-gray-600 shadow-sm md:text-sm">
+    শীঘ্রই চালু হবে
+  </span>
+</div>
+
+                  )}
+                </div>
+              );
+
+              if (!isActive) {
                 return (
                   <div
                     key={service.link}
-                    className="relative group bg-white border border-gray-200 rounded-xl p-5 md:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-[#116cb4] transition-all cursor-not-allowed h-[150px] md:h-[160px]"
+                    aria-disabled="true"
+                    className="cursor-not-allowed"
                   >
-                    <span
-                      className="text-4xl mb-3 group-hover:scale-110 transition-transform block"
-                      aria-hidden="true"
-                    >
-                      {service.icon}
-                    </span>
-
-                    <h2 className="text-[16px] md:text-[17px] font-bold text-gray-800 leading-tight">
-                      {service.title}
-                    </h2>
-
-                    {/* Hover message */}
-                    <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/95 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <span className="text-sm md:text-base font-bold text-[#116cb4] px-3">
-                        শীঘ্রই চালু হবে
-                      </span>
-                    </div>
+                    {card}
                   </div>
                 );
               }
 
-              // চালু থাকা সেবাগুলো আগের মতোই কাজ করবে
               return (
                 <Link
                   href={service.link}
                   key={service.link}
                   aria-label={`${service.title} সেবা দেখুন`}
+                  className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#116cb4] focus-visible:ring-offset-2"
                 >
-                  <div className="bg-white border border-gray-200 rounded-xl p-5 md:p-6 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:border-[#116cb4] transition-all cursor-pointer group h-[150px] md:h-[160px]">
-                    <span
-                      className="text-4xl mb-3 group-hover:scale-110 transition-transform block"
-                      aria-hidden="true"
-                    >
-                      {service.icon}
-                    </span>
-
-                    <h2 className="text-[16px] md:text-[17px] font-bold text-gray-800 group-hover:text-[#116cb4] transition-colors leading-tight">
-                      {service.title}
-                    </h2>
-                  </div>
+                  {card}
                 </Link>
               );
             })}

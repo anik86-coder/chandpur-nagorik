@@ -111,20 +111,21 @@ export default function TermsAndConditionsPage() {
               </p>
             </div>
 
-            <div className="bg-gray-50 p-5 border-l-4 border-[#116cb4] mt-8 rounded shadow-sm">
-              <p className="font-semibold text-gray-800">
-                এই শর্তাবলী সম্পর্কে আপনার কোনো প্রশ্ন, অভিযোগ বা মতামত
-                থাকলে সরাসরি আমাদের সাথে যোগাযোগ করুন:
-                <br />
+            
+<div className="bg-gray-50 p-5 border-l-4 border-[#116cb4] mt-8 rounded-xl shadow-sm">
+  <p className="font-semibold text-gray-800">
+    এই শর্তাবলী সম্পর্কে আপনার কোনো প্রশ্ন, অভিযোগ বা মতামত থাকলে আমাদের সাথে যোগাযোগ করুন।
+  </p>
 
-                <a
-                  href="mailto:info@chandpurnagorik.com"
-                  className="text-red-600 hover:underline mt-1 inline-block text-lg"
-                >
-                  info@chandpurnagorik.com
-                </a>
-              </p>
-            </div>
+  <a
+    href="https://chandpurnagorik.com/contact"
+    className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-[#116cb4] px-6 py-3 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:bg-[#0d5792] hover:shadow-lg active:scale-95"
+  >
+    আমাদের সাথে যোগাযোগ করুন
+    <span aria-hidden="true">→</span>
+  </a>
+</div>
+
 
           </div>
         </div>

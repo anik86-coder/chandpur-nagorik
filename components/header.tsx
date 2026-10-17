@@ -25,7 +25,7 @@ export default function Header() {
             <Link href="/" className="flex items-center">
               <Image
                 src="/logo-banner-1.png"
-                alt="Chandpur Nagorik Logo"
+                alt="চাঁদপুর নাগরিক — Chandpur Nagorik"
                 width={220}
                 height={60}
                 className="object-contain h-[45px] sm:h-[55px] w-auto"

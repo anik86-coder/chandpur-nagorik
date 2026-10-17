@@ -35,9 +35,7 @@ export default function Footer() {
             {/* Description */}
 
             <p className="text-gray-500 text-[15px] leading-relaxed">
-              চাঁদপুরের মানুষের দৈনন্দিন প্রয়োজন ও কল্যাণে বিভিন্ন নাগরিক
-              সেবা প্রদানে আমরা অঙ্গীকারবদ্ধ। মানুষের সেবায়, মানুষের
-              পাশে—চাঁদপুর নাগরিক।
+              চাঁদপুরের নাগরিক জীবনকে আরও সহজ, স্মার্ট ও সমৃদ্ধ করতে সকল প্রয়োজনীয় সেবা, তথ্য ও জনকল্যাণের সমন্বিত ডিজিটাল প্ল্যাটফর্ম।
             </p>
 
           </div>
@@ -150,7 +148,7 @@ export default function Footer() {
             {/* YouTube */}
 
             <a
-              href="#"
+              href="https://www.youtube.com/@ChandpurNagorik"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-[#FF0000] transition-colors"

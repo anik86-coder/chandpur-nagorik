@@ -54,3 +54,26 @@ body {
   animation: breaking 20s linear infinite;
   will-change: transform;
 }
+
+
+/* নাগরিক সেবা বাটনের Live Motion Animation */
+@keyframes ctaFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.cta-float {
+  animation: ctaFloat 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-float {
+    animation: none;
+  }
+}

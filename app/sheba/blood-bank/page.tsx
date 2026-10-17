@@ -990,7 +990,7 @@ export default function BloodBankPage() {
               ) : currentDonors.length > 0 ? (
                 <>
                   <div className="space-y-2">
-                    {currentDonors.map(donor => {
+                    {currentDonors.map((donor, index) => {
                       const isAvailable = checkAvailability(donor.lastDonation);
 
                       return (
@@ -1010,11 +1010,15 @@ export default function BloodBankPage() {
                                 <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center ring-1 ring-blue-100">
                                   <img
                                     src={getDonorImageUrl(
-                                    donor.profilePhoto || DEFAULT_DONOR_PROFILE_PHOTO
-                                  )}
+                                      donor.profilePhoto || DEFAULT_DONOR_PROFILE_PHOTO
+                                    )}
                                     alt={donor.name || "Donor"}
+                                    width={64}
+                                    height={64}
                                     className="w-full h-full object-cover"
-                                    loading="lazy"
+                                    loading={index < 3 ? "eager" : "lazy"}
+                                    decoding="async"
+                                    fetchPriority={index === 0 ? "high" : "auto"}
                                   />
                                 </div>
                               </div>
@@ -1318,7 +1322,7 @@ export default function BloodBankPage() {
 
       {detailsModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[140] px-3 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-[390px] rounded-3xl shadow-2xl relative max-h-[92vh] overflow-y-auto">
+          <div className="bg-white w-full max-w-[390px] rounded-3xl shadow-2xl relative max-h-[88vh] overflow-y-auto">
             {/* Close */}
             <button
               type="button"
@@ -1333,7 +1337,7 @@ export default function BloodBankPage() {
               ×
             </button>
 
-            <div className="px-5 pt-6 pb-5">
+            <div className="px-4 pt-4 pb-4">
               {/* Profile */}
               <div className="flex flex-col items-center text-center">
                 <div className="relative inline-flex items-center">
@@ -1342,10 +1346,15 @@ export default function BloodBankPage() {
                     <div className="w-full h-full rounded-[13px] overflow-hidden bg-white ring-1 ring-red-100">
                       <img
                         src={getDonorImageUrl(
-                        detailsModal.profilePhoto || DEFAULT_DONOR_PROFILE_PHOTO
-                      )}
+                          detailsModal.profilePhoto || DEFAULT_DONOR_PROFILE_PHOTO
+                        )}
                         alt={detailsModal.name || "Donor"}
+                        width={96}
+                        height={96}
                         className="w-full h-full object-cover"
+                        loading="eager"
+                        decoding="async"
+                        fetchPriority="high"
                       />
                     </div>
                   </div>
@@ -1361,7 +1370,7 @@ export default function BloodBankPage() {
                   />
                 </div>
 
-                <div className="mt-3 flex items-center justify-center gap-1.5 flex-wrap">
+                <div className="mt-2 flex items-center justify-center gap-1.5 flex-wrap">
                   <h3 className="text-[25px] leading-tight font-extrabold text-gray-900">
                     {detailsModal.name || "ডোনার"}
                   </h3>
@@ -1383,7 +1392,7 @@ export default function BloodBankPage() {
                   ) : null}
                 </div>
 
-                <div className="mt-2 inline-flex items-center gap-1.5 bg-red-50 border border-red-100 text-red-600 px-3 py-1.5 rounded-full font-extrabold text-base">
+                <div className="mt-1.5 inline-flex items-center gap-1.5 bg-red-50 border border-red-100 text-red-600 px-3 py-1 rounded-full font-extrabold text-base">
                   🩸 {detailsModal.group}
                 </div>
 
@@ -1402,16 +1411,16 @@ export default function BloodBankPage() {
                       showToast("প্রোফাইল লিংক তৈরি হয়েছে। এখন অ্যাড্রেস বার থেকে কপি করুন।");
                     }
                   }}
-                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-600 shadow-sm transition hover:bg-red-50"
+                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-1.5 text-sm font-bold text-red-600 shadow-sm transition hover:bg-red-50"
                 >
                   🔗 প্রোফাইল লিংক কপি করুন
                 </button>
               </div>
 
               {/* Donor information — no serial numbers */}
-              <div className="mt-5 space-y-3.5 text-[17px]">
+              <div className="mt-4 space-y-2.5 text-[17px]">
                 {detailsModal.address && (
-                  <div className="border-b border-gray-100 pb-3">
+                  <div className="border-b border-gray-100 pb-2">
                     <p className="text-gray-500 font-bold text-[15px] mb-0.5">
                       ঠিকানা
                     </p>
@@ -1422,7 +1431,7 @@ export default function BloodBankPage() {
                 )}
 
                 {detailsModal.dob && (
-                  <div className="border-b border-gray-100 pb-3">
+                  <div className="border-b border-gray-100 pb-2">
                     <p className="text-gray-500 font-bold text-[15px] mb-0.5">
                       জন্মতারিখ
                     </p>
@@ -1433,7 +1442,7 @@ export default function BloodBankPage() {
                 )}
 
                 {detailsModal.disease && (
-                  <div className="border-b border-gray-100 pb-3">
+                  <div className="border-b border-gray-100 pb-2">
                     <p className="text-gray-500 font-bold text-[15px] mb-0.5">
                       রোগ
                     </p>
@@ -1444,7 +1453,7 @@ export default function BloodBankPage() {
                 )}
 
                 {detailsModal.allergy && (
-                  <div className="border-b border-gray-100 pb-3">
+                  <div className="border-b border-gray-100 pb-2">
                     <p className="text-gray-500 font-bold text-[15px] mb-0.5">
                       অ্যালার্জি
                     </p>
@@ -1456,7 +1465,7 @@ export default function BloodBankPage() {
               </div>
 
               {/* Donation history — only these two donation functions */}
-              <div className="mt-5 rounded-2xl border border-red-100 bg-red-50/50 px-4 py-4">
+              <div className="mt-4 rounded-2xl border border-red-100 bg-red-50/50 px-3 py-3">
                 <p className="text-red-700 font-extrabold text-[18px] mb-2">
                   রক্ত দিয়েছেন
                 </p>
@@ -1492,12 +1501,12 @@ export default function BloodBankPage() {
               </div>
 
               {/* Phone + status update */}
-              <div className="mt-4">
+              <div className="mt-3">
                 {revealedPhone ? (
                   <div className="flex flex-col gap-3">
                     <a
                       href={`tel:${revealedPhone}`}
-                      className="text-xl font-extrabold text-[#116cb4] tracking-widest bg-blue-50 px-4 py-3 rounded-xl border border-blue-100 w-full text-center"
+                      className="text-lg font-extrabold text-[#116cb4] tracking-widest bg-blue-50 px-4 py-2.5 rounded-xl border border-blue-100 w-full text-center"
                     >
                       {revealedPhone}
                     </a>
@@ -1511,7 +1520,7 @@ export default function BloodBankPage() {
                           donorId: detailsModal.id,
                         });
                       }}
-                      className="bg-green-600 text-white px-4 py-3.5 rounded-xl font-bold text-[17px] hover:bg-green-700 w-full shadow-md transition-colors"
+                      className="bg-green-600 text-white px-4 py-3 rounded-xl font-bold text-[16px] hover:bg-green-700 w-full shadow-md transition-colors"
                     >
                       🩸 আমি রক্ত দিয়েছি — স্ট্যাটাস আপডেট
                     </button>
@@ -1520,7 +1529,7 @@ export default function BloodBankPage() {
                   <button
                     type="button"
                     onClick={handlePhoneReveal}
-                    className="bg-[#116cb4] text-white px-6 py-3.5 rounded-xl font-bold text-[17px] hover:bg-blue-700 w-full transition-all shadow-md"
+                    className="bg-[#116cb4] text-white px-6 py-3 rounded-xl font-bold text-[16px] hover:bg-blue-700 w-full transition-all shadow-md"
                   >
                     মোবাইল নম্বর দেখুন
                   </button>

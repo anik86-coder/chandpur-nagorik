@@ -1,6 +1,5 @@
 
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -31,18 +30,24 @@ const inter = Inter({
 
 /* SEO Metadata */
 
+const siteUrl = "https://chandpurnagorik.com";
+
+const siteTitle = "চাঁদপুর নাগরিক | Chandpur Nagorik";
+
+const siteDescription =
+  "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় নাগরিক সেবা, স্বাস্থ্যসেবা, হাসপাতাল, ডাক্তার, ডায়াগনস্টিক সেন্টার, রক্তদাতা ও স্থানীয় তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম।";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://chandpurnagorik.com"),
+  metadataBase: new URL(siteUrl),
 
   title: {
-    default: "চাঁদপুর নাগরিক | Chandpur Nagorik",
+    default: siteTitle,
     template: "%s | চাঁদপুর নাগরিক",
   },
 
-  description:
-    "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় নাগরিক সেবা, স্বাস্থ্যসেবা, হাসপাতাল, ডাক্তার, ডায়াগনস্টিক সেন্টার, রক্তদাতা ও স্থানীয় তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম।",
+  description: siteDescription,
 
-  applicationName: "Chandpur Nagorik",
+  applicationName: "চাঁদপুর নাগরিক",
 
   keywords: [
     "চাঁদপুর",
@@ -50,19 +55,20 @@ export const metadata: Metadata = {
     "Chandpur Nagorik",
     "Chandpur",
     "চাঁদপুর সেবা",
+    "চাঁদপুর নাগরিক সেবা",
     "চাঁদপুর হাসপাতাল",
     "চাঁদপুর ডাক্তার",
     "চাঁদপুর ডাক্তার তালিকা",
     "চাঁদপুর ডায়াগনস্টিক",
     "চাঁদপুর ব্লাড ব্যাংক",
     "রক্তদাতা চাঁদপুর",
-    "চাঁদপুর নাগরিক সেবা",
+    "চাঁদপুর স্বাস্থ্যসেবা",
   ],
 
   authors: [
     {
       name: "Chandpur Nagorik",
-      url: "https://chandpurnagorik.com",
+      url: siteUrl,
     },
   ],
 
@@ -88,18 +94,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "bn_BD",
-    url: "https://chandpurnagorik.com",
-    siteName: "Chandpur Nagorik",
-    title: "চাঁদপুর নাগরিক | Chandpur Nagorik",
-    description:
-      "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় নাগরিক সেবা, স্বাস্থ্যসেবা, হাসপাতাল, ডাক্তার, ডায়াগনস্টিক সেন্টার, রক্তদাতা ও স্থানীয় তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম।",
+    url: siteUrl,
+    siteName: "চাঁদপুর নাগরিক",
+    title: siteTitle,
+    description: siteDescription,
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "চাঁদপুর নাগরিক | Chandpur Nagorik",
-    description:
-      "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় সেবা ও তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম।",
+    title: siteTitle,
+    description: siteDescription,
   },
 };
 
@@ -108,11 +112,11 @@ export const metadata: Metadata = {
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "Chandpur Nagorik",
-  alternateName: "চাঁদপুর নাগরিক",
-  url: "https://chandpurnagorik.com",
-  description:
-    "চাঁদপুরের নাগরিকদের জন্য প্রয়োজনীয় নাগরিক সেবা ও তথ্যের নির্ভরযোগ্য প্ল্যাটফর্ম।",
+  "@id": `${siteUrl}/#organization`,
+  name: "চাঁদপুর নাগরিক",
+  alternateName: "Chandpur Nagorik",
+  url: `${siteUrl}/`,
+  description: siteDescription,
   areaServed: {
     "@type": "City",
     name: "Chandpur",
@@ -122,6 +126,25 @@ const organizationSchema = {
     addressLocality: "Chandpur",
     addressRegion: "Chattogram Division",
     addressCountry: "BD",
+  },
+};
+
+/* Website Structured Data */
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${siteUrl}/#website`,
+  url: `${siteUrl}/`,
+  name: "চাঁদপুর নাগরিক",
+  alternateName: [
+    "Chandpur Nagorik",
+    "Chandpur Nagorik - চাঁদপুর নাগরিক",
+  ],
+  description: siteDescription,
+  inLanguage: "bn-BD",
+  publisher: {
+    "@id": `${siteUrl}/#organization`,
   },
 };
 
@@ -144,6 +167,13 @@ export default function RootLayout({
             __html: JSON.stringify(organizationSchema),
           }}
         />
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteSchema),
+          }}
+        />
       </head>
 
       <body className="flex min-h-screen flex-col">
@@ -154,15 +184,6 @@ export default function RootLayout({
         <Footer />
 
         <SupportWidget />
-
-        {/* Google AdSense */}
-        <Script
-          id="google-adsense"
-          async
-          strategy="afterInteractive"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9802392928690253"
-          crossOrigin="anonymous"
-        />
       </body>
     </html>
   );

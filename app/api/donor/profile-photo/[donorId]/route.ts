@@ -1,5 +1,9 @@
+
 import { NextRequest, NextResponse } from "next/server";
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  HeadObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 import { adminDb } from "@/lib/firebase-admin";
 
@@ -15,7 +19,6 @@ const accessKeyId = process.env.S3_AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.S3_AWS_SECRET_ACCESS_KEY;
 const bucketName = process.env.AWS_S3_MEDIA_BUCKET_NAME;
 
-// CloudFront
 const CLOUDFRONT_DOMAIN =
   process.env.NEXT_PUBLIC_DONOR_CLOUDFRONT_URL ||
   "https://d2vneetxm2xhbc.cloudfront.net";
@@ -57,23 +60,16 @@ export async function GET(
   }
 ) {
   try {
-    // ========================================================
     // 1. GET DONOR ID
-    // ========================================================
 
     const { donorId } = await context.params;
-
     const cleanDonorId = String(donorId || "").trim();
 
     if (!cleanDonorId) {
-      return new NextResponse(null, {
-        status: 400,
-      });
+      return new NextResponse(null, { status: 400 });
     }
 
-    // ========================================================
     // 2. GET DONOR FROM FIRESTORE
-    // ========================================================
 
     const donorRef = adminDb
       .collection("donors")
@@ -82,120 +78,116 @@ export async function GET(
     const donorSnap = await donorRef.get();
 
     if (!donorSnap.exists) {
-      return new NextResponse(null, {
-        status: 404,
-      });
+      return new NextResponse(null, { status: 404 });
     }
 
     const donorData = donorSnap.data() || {};
 
-    // ========================================================
     // 3. ONLY ACTIVE DONORS
-    // ========================================================
 
     if (
       donorData.active === false ||
       donorData.deletedAt
     ) {
-      return new NextResponse(null, {
-        status: 404,
-      });
+      return new NextResponse(null, { status: 404 });
     }
 
-    // ========================================================
     // 4. PROFILE PHOTO KEY
-    // ========================================================
 
     const profilePhotoKey = String(
       donorData.profilePhotoKey || ""
     ).trim();
 
     if (!profilePhotoKey) {
-      return new NextResponse(null, {
-        status: 404,
-      });
+      return new NextResponse(null, { status: 404 });
     }
 
-    // ========================================================
     // 5. SECURITY CHECK
-    // ========================================================
 
-    const expectedPrefix =
-      `donors/${cleanDonorId}/profile/`;
+    const expectedPrefix = `donors/${cleanDonorId}/profile/`;
 
+    if (!profilePhotoKey.startsWith(expectedPrefix)) {
+      console.error("Invalid donor profile photo key:", {
+        donorId: cleanDonorId,
+        profilePhotoKey,
+      });
+
+      return new NextResponse(null, { status: 404 });
+    }
+
+    // Reject malformed keys and unexpected path segments.
     if (
-      !profilePhotoKey.startsWith(
-        expectedPrefix
+      profilePhotoKey.includes("\\") ||
+      profilePhotoKey.split("/").some(
+        (segment) => segment === "." || segment === ".."
       )
     ) {
-      console.error(
-        "Invalid donor profile photo key:",
-        {
-          donorId: cleanDonorId,
-          profilePhotoKey,
-        }
-      );
-
-      return new NextResponse(null, {
-        status: 404,
-      });
+      return new NextResponse(null, { status: 404 });
     }
 
-    // ========================================================
     // 6. VERIFY OBJECT EXISTS IN S3
-    // ========================================================
+    // HEAD checks object metadata without downloading the image body.
 
     const s3Result = await s3Client.send(
-      new GetObjectCommand({
+      new HeadObjectCommand({
         Bucket: bucketName,
         Key: profilePhotoKey,
       })
     );
 
-    if (!s3Result.Body) {
-      return new NextResponse(null, {
-        status: 404,
-      });
+    // A successful HEAD request confirms that the object exists.
+    // If S3 throws for a missing object or another error,
+    // the catch block handles it.
+
+    // 7. BUILD CLOUDFRONT URL
+
+    const cleanCloudFrontDomain = CLOUDFRONT_DOMAIN
+      .trim()
+      .replace(/\/+$/, "");
+
+    let cloudFrontOrigin: URL;
+
+    try {
+      cloudFrontOrigin = new URL(cleanCloudFrontDomain);
+    } catch {
+      console.error("Invalid CloudFront domain configuration.");
+      return new NextResponse(null, { status: 500 });
     }
 
-    // ========================================================
-    // 7. DO NOT SEND S3 BYTES THROUGH NEXT.JS
-    //
-    // Security checks are already completed above.
-    // The actual image will now be served by CloudFront.
-    // ========================================================
+    if (
+      cloudFrontOrigin.protocol !== "https:" &&
+      cloudFrontOrigin.protocol !== "http:"
+    ) {
+      return new NextResponse(null, { status: 500 });
+    }
 
-    const cleanCloudFrontDomain =
-      CLOUDFRONT_DOMAIN.replace(/\/+$/, "");
+    const encodedKey = profilePhotoKey
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
 
     const cloudFrontUrl =
-      `${cleanCloudFrontDomain}/${profilePhotoKey}`;
+      `${cloudFrontOrigin.origin}/${encodedKey}`;
 
-    // ========================================================
     // 8. REDIRECT TO CLOUDFRONT
-    // ========================================================
+    // Keep the existing redirect behavior and cache it briefly.
 
-    return NextResponse.redirect(
-      cloudFrontUrl,
-      {
-        status: 302,
-        headers: {
-          "Cache-Control":
-            "public, max-age=60, stale-while-revalidate=300",
-
-          "X-Content-Type-Options":
-            "nosniff",
-        },
-      }
-    );
+    return NextResponse.redirect(cloudFrontUrl, {
+      status: 302,
+      headers: {
+        "Cache-Control":
+          "public, max-age=300, s-maxage=300, stale-while-revalidate=60",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   } catch (error) {
-    console.error(
-      "Donor profile photo API error:",
-      error
-    );
+    console.error("Donor profile photo API error:", error);
 
     return new NextResponse(null, {
       status: 404,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     });
   }
 }

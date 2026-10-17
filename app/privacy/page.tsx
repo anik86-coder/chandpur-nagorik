@@ -106,18 +106,22 @@ export default function PrivacyPolicyPage() {
                 ৭. যোগাযোগ (Contact Us)
               </h2>
 
-              <p>
-                আমাদের গোপনীয়তা নীতি সম্পর্কে আপনার যদি কোনো প্রশ্ন বা পরামর্শ
-                থাকে, তবে নির্দ্বিধায় আমাদের সাথে যোগাযোগ করুন।
-                <br />
-                <strong>ইমেইল:</strong>{" "}
-                <a
-                  href="mailto:info@chandpurnagorik.com"
-                  className="text-blue-600 font-medium"
-                >
-                  info@chandpurnagorik.com
-                </a>
-              </p>
+              
+<div className="mt-6 rounded-xl border-l-4 border-[#116cb4] bg-gray-50 p-5 shadow-sm">
+  <p className="font-medium leading-7 text-gray-700">
+    আমাদের গোপনীয়তা নীতি সম্পর্কে আপনার কোনো প্রশ্ন বা পরামর্শ থাকলে,
+    নির্দ্বিধায় আমাদের সাথে যোগাযোগ করুন।
+  </p>
+
+  <a
+    href="https://chandpurnagorik.com/contact"
+    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#116cb4] px-5 py-3 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#0d5792] hover:shadow-lg active:translate-y-0"
+  >
+    আমাদের সাথে যোগাযোগ করুন
+    <span aria-hidden="true">→</span>
+  </a>
+</div>
+
             </div>
           </div>
         </div>

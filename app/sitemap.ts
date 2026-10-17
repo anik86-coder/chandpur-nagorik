@@ -1,76 +1,60 @@
+
 import type { MetadataRoute } from "next";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://chandpurnagorik.com";
+const baseUrl = "https://chandpurnagorik.com";
 
-  return [
+export default function sitemap(): MetadataRoute.Sitemap {
+  const pages = [
     {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: "daily",
+      path: "",
+      changeFrequency: "weekly" as const,
       priority: 1,
     },
-
-    // নাগরিক সেবা
     {
-      url: `${baseUrl}/sheba`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
+      path: "/sheba",
+      changeFrequency: "weekly" as const,
       priority: 0.9,
     },
-
-    // Blood Bank
     {
-      url: `${baseUrl}/sheba/blood-bank`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
+      path: "/sheba/blood-bank",
+      changeFrequency: "daily" as const,
       priority: 0.95,
     },
     {
-      url: `${baseUrl}/sheba/blood-bank/register`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
+      path: "/sheba/blood-bank/register",
+      changeFrequency: "monthly" as const,
       priority: 0.7,
     },
-
-    // Health
     {
-      url: `${baseUrl}/sheba/health`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
+      path: "/sheba/health",
+      changeFrequency: "weekly" as const,
       priority: 0.9,
     },
-
-    // Hospitals
     {
-      url: `${baseUrl}/sheba/health/hospitals`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
+      path: "/sheba/health/hospitals",
+      changeFrequency: "weekly" as const,
       priority: 0.9,
     },
-
-    // Doctors
     {
-      url: `${baseUrl}/sheba/health/doctors`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
+      path: "/sheba/health/doctors",
+      changeFrequency: "weekly" as const,
       priority: 0.9,
     },
-
-    // Diagnostic
     {
-      url: `${baseUrl}/sheba/health/diagnostic`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
+      path: "/sheba/health/diagnostic",
+      changeFrequency: "weekly" as const,
       priority: 0.85,
     },
-
-    // Ambulance
     {
-      url: `${baseUrl}/sheba/health/ambulance`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
+      path: "/sheba/health/ambulance",
+      changeFrequency: "weekly" as const,
       priority: 0.8,
     },
   ];
+
+  return pages.map((page) => ({
+    url: `${baseUrl}${page.path || "/"}`,
+    changeFrequency: page.changeFrequency,
+    priority: page.priority,
+  }));
 }
