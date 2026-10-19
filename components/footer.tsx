@@ -50,7 +50,7 @@ export default function Footer() {
               href="/donation"
               className="hover:text-[#116cb4] transition-colors"
             >
-              ডোনেশন
+             🫶ডোনেশন
             </Link>
 
             <Link
@@ -87,6 +87,10 @@ export default function Footer() {
             >
               মতামত
             </Link>
+
+            <Link href="/others">
+  অন্যান্য সহায়তা
+</Link>
 
           </div>
 

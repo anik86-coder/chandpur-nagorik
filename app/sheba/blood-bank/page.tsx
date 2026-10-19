@@ -177,6 +177,7 @@ export default function BloodBankPage() {
   const [hoveredVerificationId, setHoveredVerificationId] = useState<string | null>(null);
   const [clickedVerificationId, setClickedVerificationId] = useState<string | null>(null);
   const verificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const verificationHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loginModal, setLoginModal] = useState({ isOpen: false, donorId: null as string | null });
   const [loginEmail, setLoginEmail] = useState("");
   const [loginOtp, setLoginOtp] = useState("");
@@ -271,7 +272,7 @@ export default function BloodBankPage() {
     verificationTimerRef.current = setTimeout(() => {
       setClickedVerificationId((prev) => (prev === id ? null : prev));
       verificationTimerRef.current = null;
-    }, 700);
+    }, 1000);
   };
 
   const closeVerificationPopup = () => {
@@ -293,17 +294,10 @@ export default function BloodBankPage() {
     document.addEventListener("pointerdown", handleOutsideInteraction, true);
     document.addEventListener("touchstart", handleOutsideInteraction, true);
     document.addEventListener("keydown", handleOutsideInteraction, true);
-    window.addEventListener("scroll", handleOutsideInteraction, true);
-    window.addEventListener("wheel", handleOutsideInteraction, true);
-    window.addEventListener("touchmove", handleOutsideInteraction, true);
-
     return () => {
       document.removeEventListener("pointerdown", handleOutsideInteraction, true);
       document.removeEventListener("touchstart", handleOutsideInteraction, true);
       document.removeEventListener("keydown", handleOutsideInteraction, true);
-      window.removeEventListener("scroll", handleOutsideInteraction, true);
-      window.removeEventListener("wheel", handleOutsideInteraction, true);
-      window.removeEventListener("touchmove", handleOutsideInteraction, true);
     };
   }, [clickedVerificationId]);
 
@@ -889,15 +883,27 @@ export default function BloodBankPage() {
             ))}
           </div>
 
-          <div className="text-center mt-2 mb-4 border-b border-gray-200 pb-4">
-            <Link
-              href="/sheba/blood-bank/register"
-              className="inline-flex items-center justify-center bg-red-600 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-red-700 transition shadow-lg w-full md:w-auto"
-            >
-              আমি রক্ত দিতে চাই 🩸
-            </Link>
-            <p className="text-gray-500 text-sm mt-3">আপনি চাইলে নিজে রক্তদাতা হিসেবে যুক্ত হতে পারেন</p>
-          </div>
+         <div className="text-center mt-2 mb-4 border-b border-gray-200 pb-4">
+  <div className="flex items-center justify-center gap-3">
+    <Link
+      href="/sheba/blood-bank/register"
+      className="inline-flex flex-[1.2] items-center justify-center bg-red-600 text-white px-2 sm:px-8 py-3 rounded-full font-bold text-base sm:text-lg hover:bg-red-700 transition shadow-lg sm:flex-none"
+    >
+      আমি রক্ত দিতে চাই 🩸
+    </Link>
+
+    <Link
+      href="/sheba/blood-bank/tutorial"
+      className="inline-flex flex-1 items-center justify-center rounded-full bg-green-600 px-2 sm:px-6 py-3 text-base sm:text-base font-bold text-white shadow-md transition hover:bg-green-700 sm:flex-none"
+    >
+      আমি রক্ত দিয়েছি
+    </Link>
+  </div>
+
+  <p className="text-gray-500 text-sm mt-3">
+    আপনি চাইলে নিজে রক্তদাতা হিসেবে যুক্ত হতে পারেন
+  </p>
+</div>
 
           {selectedGroup && (
             <div>
@@ -1025,45 +1031,47 @@ export default function BloodBankPage() {
 
                               <div className="min-w-0 flex-1">
                                 {/* Name + tick + badge */}
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <h4 className="font-bold text-xl text-gray-900 leading-tight">
+                                <div className="relative flex items-center justify-start gap-1 flex-nowrap min-w-0 w-full rounded-md bg-white px-1 py-1">
+                                  <h4
+                                    className="min-w-0 flex-none max-w-[calc(100%-24px)] whitespace-nowrap overflow-hidden text-ellipsis font-extrabold text-[17px] sm:text-xl text-gray-900 leading-tight"
+                                    title={donor.name || ""}
+                                  >
                                     {donor.name}
                                   </h4>
 
                                   {donor.businessVerified === true ? (
                                     <span
-                                      className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
-                                      onMouseEnter={() =>
-                                        setHoveredVerificationId(`business-${donor.id}`)
-                                      }
+                                      className="relative inline-flex items-center justify-center w-[18px] h-[18px] shrink-0 cursor-default select-none outline-none"
+                                      onMouseEnter={() => {
+                                        if (verificationHoverTimerRef.current) {
+                                          clearTimeout(verificationHoverTimerRef.current);
+                                          verificationHoverTimerRef.current = null;
+                                        }
+                                        setHoveredVerificationId(`business-${donor.id}`);
+                                      }}
                                       onMouseLeave={() => {
-                                        setHoveredVerificationId(null);
+                                        verificationHoverTimerRef.current = setTimeout(() => {
+                                          setHoveredVerificationId((prev) =>
+                                            prev === `business-${donor.id}` ? null : prev
+                                          );
+                                          verificationHoverTimerRef.current = null;
+                                        }, 900);
                                       }}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         showVerificationPopup(`business-${donor.id}`);
-                                      }}
-                                      role="button"
-                                      tabIndex={0}
-                                      onBlur={() => closeVerificationPopup()}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter" || e.key === " ") {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          showVerificationPopup(`business-${donor.id}`);
-                                        }
                                       }}
                                       aria-label="Business Verified"
                                     >
                                       <img
                                         src="/golden-verify.png"
                                         alt="Business Verified"
-                                        className="w-5 h-5 object-contain pointer-events-none select-none"
+                                        className="w-[18px] h-[18px] object-contain pointer-events-none select-none"
                                       />
 
                                       {(hoveredVerificationId === `business-${donor.id}` ||
                                         clickedVerificationId === `business-${donor.id}`) && (
-                                        <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-[180] w-max min-w-[180px] rounded-xl bg-gray-900/95 px-4 py-2.5 text-center shadow-lg border border-white/10 pointer-events-none">
+                                        <span className="absolute right-0 top-full mt-2 z-[220] w-max min-w-[160px] max-w-[min(220px,calc(100vw-24px))] whitespace-normal rounded-xl bg-gray-900/95 px-3 py-2 text-center shadow-xl border border-white/10 pointer-events-none">
                                           <span className="block text-sm leading-5 font-bold text-white">
                                             Business Verified
                                           </span>
@@ -1072,38 +1080,37 @@ export default function BloodBankPage() {
                                     </span>
                                   ) : donor.verified === true ? (
                                     <span
-                                      className="relative inline-flex items-center justify-center w-5 h-5 shrink-0 cursor-pointer select-none"
-                                      onMouseEnter={() =>
-                                        setHoveredVerificationId(`verified-${donor.id}`)
-                                      }
+                                      className="relative inline-flex items-center justify-center w-[18px] h-[18px] shrink-0 cursor-default select-none outline-none"
+                                      onMouseEnter={() => {
+                                        if (verificationHoverTimerRef.current) {
+                                          clearTimeout(verificationHoverTimerRef.current);
+                                          verificationHoverTimerRef.current = null;
+                                        }
+                                        setHoveredVerificationId(`verified-${donor.id}`);
+                                      }}
                                       onMouseLeave={() => {
-                                        setHoveredVerificationId(null);
+                                        verificationHoverTimerRef.current = setTimeout(() => {
+                                          setHoveredVerificationId((prev) =>
+                                            prev === `verified-${donor.id}` ? null : prev
+                                          );
+                                          verificationHoverTimerRef.current = null;
+                                        }, 900);
                                       }}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         showVerificationPopup(`verified-${donor.id}`);
-                                      }}
-                                      role="button"
-                                      tabIndex={0}
-                                      onBlur={() => closeVerificationPopup()}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter" || e.key === " ") {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          showVerificationPopup(`verified-${donor.id}`);
-                                        }
                                       }}
                                       aria-label="Verified Donor"
                                     >
                                       <img
                                         src="/check1.png"
                                         alt="Verified donor"
-                                        className="w-5 h-5 object-contain pointer-events-none select-none"
+                                        className="w-[18px] h-[18px] object-contain pointer-events-none select-none"
                                       />
 
                                       {(hoveredVerificationId === `verified-${donor.id}` ||
                                         clickedVerificationId === `verified-${donor.id}`) && (
-                                        <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-[180] w-max min-w-[195px] rounded-xl bg-gray-900/95 px-4 py-2.5 text-center shadow-lg border border-white/10 pointer-events-none">
+                                        <span className="absolute right-0 top-full mt-2 z-[220] w-max min-w-[170px] max-w-[min(220px,calc(100vw-24px))] whitespace-normal rounded-xl bg-gray-900/95 px-3 py-2 text-center shadow-xl border border-white/10 pointer-events-none">
                                           <span className="block text-sm leading-5 font-bold text-white">
                                             Verified Donor
                                           </span>
@@ -1126,25 +1133,46 @@ export default function BloodBankPage() {
                                   ) : null}
                                 </div>
 
-                                {/* Address */}
-                                {donor.address && (
-                                  <div className="mt-1.5 mb-1.5">
-                                    <span className="bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-1 rounded inline-flex items-center gap-1 font-sans max-w-full">
-                                      <svg
-                                        className="w-3.5 h-3.5 text-gray-400 shrink-0"
-                                        fill="currentColor"
-                                        viewBox="0 0 20 20"
+                                {/* Short address + profile button on the same line */}
+                                <div className="mt-1.5 mb-1.5 flex min-w-0 w-full items-center justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    {donor.address && (
+                                      <span
+                                        className="bg-gray-100 text-gray-600 border border-gray-200 text-[11px] px-1.5 py-0.5 rounded inline-flex items-center gap-1 font-sans max-w-full min-w-0"
+                                        title={donor.address}
                                       >
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg>
-                                      <span className="truncate">{donor.address}</span>
-                                    </span>
+                                        <svg
+                                          className="w-3 h-3 text-gray-400 shrink-0"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                                            clipRule="evenodd"
+                                          />
+                                        </svg>
+                                        <span className="block min-w-0 truncate">
+                                          {donor.address.length > 24
+                                            ? `${donor.address.slice(0, 24)}...`
+                                            : donor.address}
+                                        </span>
+                                      </span>
+                                    )}
                                   </div>
-                                )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDetailsModal(donor);
+                                      setRevealedPhone(null);
+                                      updateBloodBankUrl(selectedGroup, currentPage, donor.id);
+                                    }}
+                                    className="shrink-0 bg-red-50 text-red-600 border border-red-200 text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm whitespace-nowrap"
+                                  >
+                                    প্রোফাইল দেখুন
+                                  </button>
+                                </div>
 
                                 {/* ID */}
                                 <div
@@ -1201,20 +1229,6 @@ export default function BloodBankPage() {
                               </div>
                             </div>
 
-                            {/* Details button */}
-                            <div className="text-right shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDetailsModal(donor);
-                                  setRevealedPhone(null);
-                                  updateBloodBankUrl(selectedGroup, currentPage, donor.id);
-                                }}
-                                className="bg-red-50 text-red-600 border border-red-200 text-sm px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                              >
-                                প্রোফাইল দেখুন
-                              </button>
-                            </div>
                           </div>
                         </div>
                       );
