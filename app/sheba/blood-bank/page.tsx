@@ -435,15 +435,21 @@ export default function BloodBankPage() {
       setMaxVisitedPage(safePage);
       updateBloodBankUrl(bg, safePage, requestedDonorId);
 
-      // Shared donor URLs open the matching donor's details modal automatically.
+      // Shared URLs may open a profile only while the donor is available.
+      // Donors within the 90-day waiting period cannot open the details modal.
       if (requestedDonorId) {
         const sharedDonor = sortedDonors.find((donor) => donor.id === requestedDonorId);
-        if (sharedDonor) {
+        if (sharedDonor && checkAvailability(sharedDonor.lastDonation)) {
           setDetailsModal(sharedDonor);
           setRevealedPhone(null);
         } else {
           setDetailsModal(null);
-          showToast("এই ডোনারের প্রোফাইল পাওয়া যায়নি অথবা আর প্রকাশিত নেই।", "error");
+          showToast(
+            sharedDonor
+              ? "এই ডোনার ৯০ দিনের অপেক্ষায় আছেন। এই সময়ে প্রোফাইল ও নম্বর দেখা যাবে না।"
+              : "এই ডোনারের প্রোফাইল পাওয়া যায়নি অথবা আর প্রকাশিত নেই।",
+            "error"
+          );
           updateBloodBankUrl(bg, safePage, null);
         }
       } else {
@@ -1161,17 +1167,19 @@ export default function BloodBankPage() {
                                     )}
                                   </div>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setDetailsModal(donor);
-                                      setRevealedPhone(null);
-                                      updateBloodBankUrl(selectedGroup, currentPage, donor.id);
-                                    }}
-                                    className="shrink-0 bg-red-50 text-red-600 border border-red-200 text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm whitespace-nowrap"
-                                  >
-                                    প্রোফাইল দেখুন
-                                  </button>
+                                  {isAvailable && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setDetailsModal(donor);
+                                        setRevealedPhone(null);
+                                        updateBloodBankUrl(selectedGroup, currentPage, donor.id);
+                                      }}
+                                      className="shrink-0 bg-red-50 text-red-600 border border-red-200 text-xs sm:text-sm px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm whitespace-nowrap"
+                                    >
+                                      প্রোফাইল দেখুন
+                                    </button>
+                                  )}
                                 </div>
 
                                 {/* ID */}
