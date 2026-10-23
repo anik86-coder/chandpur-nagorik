@@ -20,7 +20,7 @@ export default function OthersPage() {
             </span>
 
             <h1 className="mt-4 text-2xl font-extrabold text-slate-900 sm:text-3xl">
-              রক্তদাতা ব্লু টিকের জন্য আবেদন
+              রক্তদাতা Blue টিকের জন্য আবেদন
             </h1>
 
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">

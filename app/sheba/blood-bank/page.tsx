@@ -203,6 +203,58 @@ export default function BloodBankPage() {
   const [allGroupDonors, setAllGroupDonors] = useState<any[]>([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // Prevent the page behind any modal/popup from scrolling.
+  // The modal itself remains scrollable; restoring the saved position also
+  // avoids the page jumping when a modal is closed (including on mobile).
+  useEffect(() => {
+    const modalIsOpen = Boolean(
+      detailsModal || loginModal.isOpen || showCancelWarning
+    );
+
+    if (!modalIsOpen) return;
+
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const html = document.documentElement;
+
+    const previousBodyStyles = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+      overscrollBehavior: body.style.overscrollBehavior,
+    };
+    const previousHtmlStyles = {
+      overflow: html.style.overflow,
+      overscrollBehavior: html.style.overscrollBehavior,
+    };
+
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+
+    return () => {
+      body.style.position = previousBodyStyles.position;
+      body.style.top = previousBodyStyles.top;
+      body.style.left = previousBodyStyles.left;
+      body.style.right = previousBodyStyles.right;
+      body.style.width = previousBodyStyles.width;
+      body.style.overflow = previousBodyStyles.overflow;
+      body.style.overscrollBehavior = previousBodyStyles.overscrollBehavior;
+      html.style.overflow = previousHtmlStyles.overflow;
+      html.style.overscrollBehavior = previousHtmlStyles.overscrollBehavior;
+      window.scrollTo(0, scrollY);
+    };
+  }, [detailsModal, loginModal.isOpen, showCancelWarning]);
+
 
   const currentDonors = donors;
 
@@ -1343,8 +1395,8 @@ export default function BloodBankPage() {
         </>
 
       {detailsModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[140] px-3 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-[390px] rounded-3xl shadow-2xl relative max-h-[88vh] overflow-y-auto">
+        <div className="fixed inset-0 overscroll-contain touch-pan-y bg-black/60 flex items-center justify-center z-[140] px-3 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-[390px] rounded-3xl shadow-2xl relative max-h-[88dvh] overflow-y-auto overscroll-contain touch-pan-y">
             {/* Close */}
             <button
               type="button"
@@ -1627,8 +1679,8 @@ export default function BloodBankPage() {
       )}
 
       {loginModal.isOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[150] px-4 backdrop-blur-sm">
-          <div className="bg-white p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl">
+        <div className="fixed inset-0 overscroll-contain bg-black/60 flex items-center justify-center z-[150] px-4 backdrop-blur-sm">
+          <div className="bg-white p-8 rounded-2xl w-full max-w-sm text-center shadow-2xl max-h-[88dvh] overflow-y-auto overscroll-contain">
             <h3 className="text-2xl font-bold mb-2 text-gray-800">স্ট্যাটাস আপডেট</h3>
             
             {!otpSent ? (
@@ -1704,9 +1756,9 @@ export default function BloodBankPage() {
 
       {/* Custom OTP cancel warning modal */}
       {showCancelWarning && loginModal.isOpen && otpSent && (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[220] overscroll-contain flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
           <div
-            className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-sm max-h-[88dvh] overflow-y-auto overscroll-contain rounded-2xl bg-white shadow-2xl border border-gray-100"
             role="dialog"
             aria-modal="true"
             aria-labelledby="cancel-warning-title"
